@@ -6,8 +6,7 @@
 		"tsBuildInfoFile": "dist/.tsbuildinfo",
 		"plugins": [{ "transform": "typescript-transform-paths" }],
 		"paths": {
-			"@src/*": ["./src/*"],
-			"@data/*": ["./data/*"]
+			"@src/*": ["./src/*"]
 		}
 	},
 	"include": ["src"],
