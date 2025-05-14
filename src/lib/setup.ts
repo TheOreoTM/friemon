@@ -10,13 +10,13 @@ import { setup } from '@skyra/env-utilities';
 import * as colorette from 'colorette';
 import { join } from 'path';
 import { inspect } from 'util';
-import { srcDir } from './constants';
+import { ROOT_DIR } from './util/constants';
 
 // Set default behavior to bulk overwrite
 ApplicationCommandRegistries.setDefaultBehaviorWhenNotIdentical(RegisterBehavior.BulkOverwrite);
 
 // Read env var
-setup({ path: join(srcDir, '.env') });
+setup({ path: join(ROOT_DIR, '.env') });
 
 // Set default inspection depth
 inspect.defaultOptions.depth = 1;

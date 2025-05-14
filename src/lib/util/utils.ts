@@ -3,7 +3,7 @@ import { container } from '@sapphire/framework';
 import { send } from '@sapphire/plugin-editable-commands';
 import { cyan } from 'colorette';
 import { EmbedBuilder, type APIUser, type Guild, type Message, type User } from 'discord.js';
-import { RandomLoadingMessage } from './constants';
+import { RANDOM_LOADING_MESSAGE } from './constants';
 
 /**
  * Picks a random item from an array
@@ -21,7 +21,7 @@ export function pickRandom<T>(array: readonly T[]): T {
  * @param message The message data for which to send the loading message
  */
 export function sendLoadingMessage(message: Message): Promise<typeof message> {
-	return send(message, { embeds: [new EmbedBuilder().setDescription(pickRandom(RandomLoadingMessage)).setColor('#FF0000')] });
+	return send(message, { embeds: [new EmbedBuilder().setDescription(pickRandom(RANDOM_LOADING_MESSAGE)).setColor('#FF0000')] });
 }
 
 export function logSuccessCommand(payload: ContextMenuCommandSuccessPayload | ChatInputCommandSuccessPayload | MessageCommandSuccessPayload): void {
