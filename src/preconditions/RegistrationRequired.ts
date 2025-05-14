@@ -1,4 +1,5 @@
 import { AllFlowsPrecondition } from '@sapphire/framework';
+import { getUser } from '@src/lib/util/db/user';
 import type { CommandInteraction, ContextMenuCommandInteraction, Message, Snowflake } from 'discord.js';
 
 export class UserPrecondition extends AllFlowsPrecondition {
@@ -15,10 +16,10 @@ export class UserPrecondition extends AllFlowsPrecondition {
 	}
 
 	private async doRegistrationCheck(userId: Snowflake) {
-		const user = await this.container.db.user.findUnique({ where: { id: userId } });
-		if (!user) {
-			await this.container.db.user.create({ data: { id: userId } });
+		const user = await getUser(userId);
+		if (user.id) {
+			return this.ok();
 		}
-		return this.ok();
+		return this.error();
 	}
 }

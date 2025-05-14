@@ -3,7 +3,17 @@
 	"compilerOptions": {
 		"rootDir": "src",
 		"outDir": "dist",
-		"tsBuildInfoFile": "dist/.tsbuildinfo"
+		"tsBuildInfoFile": "dist/.tsbuildinfo",
+		"plugins": [{ "transform": "typescript-transform-paths" }],
+		"paths": {
+			"@src/*": ["./src/*"],
+			"@data/*": ["./data/*"]
+		}
 	},
-	"include": ["src"]
+	"include": ["src"],
+	"baseUrl": ".",
+
+	"ts-node": {
+		"require": ["tsconfig-paths/register"]
+	}
 }
