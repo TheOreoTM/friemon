@@ -58,7 +58,7 @@ export type StatStage = -6 | -5 | -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type StatStages = Record<Stat, StatStage>;
 
 // Represents a character actively participating in a battle
-export interface IBattler {
+export interface Battler {
 	id: string; // Unique ID for this battler instance in the battle
 	staticData: StaticCharacterData; // Reference to the base character data
 	ownerId: string; // Discord User ID of the owner
@@ -76,7 +76,7 @@ export interface IBattler {
 	abilityTriggered: Record<string, boolean>; // To track abilities that trigger once (like Intrepid Sword)
 
 	// Team information
-	team: IBattler[]; // Reference to the battler's team in this battle
+	team: Battler[]; // Reference to the battler's team in this battle
 	position: number; // Position in the team (0-indexed)
 
 	takeDamage(amount: number): void;
@@ -94,8 +94,8 @@ export interface IBattler {
 // Represents the overall state of the battle
 export interface IBattleState {
 	id: string;
-	players: { userId: string; team: IBattler[] }[]; // Players and their teams
-	activeBattlers: IBattler[]; // Battlers currently on the field (e.g., [player1_active, player2_active])
+	players: { userId: string; team: Battler[] }[]; // Players and their teams
+	activeBattlers: Battler[]; // Battlers currently on the field (e.g., [player1_active, player2_active])
 	turn: number; // Current turn number
 	log: string[]; // Battle log
 	weather: 'none' | 'sun' | 'rain' | 'hail' | 'sandstorm' | 'snow'; // Basic weather
