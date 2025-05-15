@@ -48,9 +48,7 @@ export interface BattlerMove {
 	currentPP: number;
 }
 
-// Status conditions
 export type StatusCondition = 'poisoned' | 'burned' | 'paralyzed' | 'frozen' | 'asleep';
-// Volatile status conditions (reset after switching)
 export type VolatileStatus = 'confusion' | 'flinch' | 'leechSeed' | 'taunt';
 
 // Stat stages (e.g., +1 Atk, -2 Def)
