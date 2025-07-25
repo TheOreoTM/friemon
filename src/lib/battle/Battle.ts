@@ -257,6 +257,13 @@ export class Battle {
         this.logMessage(`${opponent.name} restored ${restored} mana!`);
       }
     }
+
+    // Auto-switch to next available character if defeated character is active
+    if (character === this.state.userCharacter) {
+      this.autoSwitchCharacter(true);
+    } else if (character === this.state.opponentCharacter) {
+      this.autoSwitchCharacter(false);
+    }
   }
 
   public switchCharacter(isUser: boolean, newIndex: number): boolean {
@@ -420,10 +427,18 @@ export class Battle {
 
   // Methods expected by the interface
   public getCurrentCharacter(): Character | null {
+    // Return null if the current character is defeated and no auto-switch happened
+    if (this.state.userCharacter.isDefeated()) {
+      return null;
+    }
     return this.state.userCharacter;
   }
 
   public getOpponentCharacter(): Character | null {
+    // Return null if the opponent character is defeated and no auto-switch happened
+    if (this.state.opponentCharacter.isDefeated()) {
+      return null;
+    }
     return this.state.opponentCharacter;
   }
 
@@ -441,6 +456,10 @@ export class Battle {
 
   public addToBattleLog(message: string): void {
     this.logMessage(message);
+  }
+
+  public getBattleState(): BattleState {
+    return this.state;
   }
 
   public nextTurn(): void {
@@ -468,6 +487,27 @@ export class Battle {
       return this.switchCharacter(false, opponentIndex);
     }
 
+    return false;
+  }
+
+  private autoSwitchCharacter(isUser: boolean): boolean {
+    const party = isUser ? this.state.userParty : this.state.opponentParty;
+    const currentIndex = isUser ? this.state.userActiveIndex : this.state.opponentActiveIndex;
+    
+    // Find the next available character that isn't defeated
+    for (let i = 0; i < party.length; i++) {
+      if (i !== currentIndex && !party[i].isDefeated()) {
+        const success = this.switchCharacter(isUser, i);
+        if (success) {
+          this.logMessage(`${party[i].name} was automatically sent out!`);
+          return true;
+        }
+      }
+    }
+    
+    // No available characters to switch to - the side has lost
+    const side = isUser ? 'user' : 'opponent';
+    this.logMessage(`${side === 'user' ? 'Your' : 'Opponent\'s'} team has no more characters able to battle!`);
     return false;
   }
 }

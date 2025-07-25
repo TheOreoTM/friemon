@@ -223,10 +223,11 @@ export class BattleManager {
 			const decision = aiEngine.makeDecision(battle, false); // false = AI turn
 
 			if (decision.type === 'technique') {
-				const aiCharacter = battle.getCurrentCharacter();
-				const target = battle.getOpponentCharacter();
+				// AI uses the opponent character (from AI's perspective)
+				const aiCharacter = battle.getBattleState().opponentCharacter;
+				const target = battle.getBattleState().userCharacter;
 
-				if (aiCharacter && target) {
+				if (aiCharacter && target && !aiCharacter.isDefeated() && !target.isDefeated()) {
 					// Use technique index to get technique from character's technique list
 					const techniqueName = aiCharacter.techniques[decision.data];
 					const technique = getTechniqueByName(techniqueName);
@@ -242,8 +243,10 @@ export class BattleManager {
 				const switchTarget = aiCharacters[decision.data];
 
 				if (switchTarget && !switchTarget.isDefeated()) {
-					battle.switchCharacterByObject(switchTarget);
-					battle.addToBattleLog(`AI switched to ${switchTarget.name}!`);
+					const success = battle.switchCharacterByObject(switchTarget);
+					if (success) {
+						battle.addToBattleLog(`AI switched to ${switchTarget.name}!`);
+					}
 				}
 			}
 
