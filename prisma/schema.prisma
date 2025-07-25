@@ -14,7 +14,237 @@ datasource db {
 }
 
 model User {
-  id        String   @id
+  id        String   @id // Discord user ID
+  username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Game data
+  currency  Int      @default(1000)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  rank      String   @default("Bronze")
+  
+  // Owned characters and items
+  characters UserCharacter[]
+  equipment  UserEquipment[]
+  battles    Battle[]        @relation("UserBattles")
+  
+  @@map("users")
+}
+
+model UserCharacter {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Character data
+  characterId String  // Reference to STARTER_CHARACTERS
+  level       Int     @default(1)
+  currentXP   Int     @default(0)
+  nickname    String? // Optional custom name
+  
+  // Current stats/condition
+  currentHP   Int
+  maxHP       Int
+  mana        Int
+  maxMana     Int
+  
+  // Equipment slots
+  equipmentId String?
+  equipment   UserEquipment? @relation(fields: [equipmentId], references: [id])
+  
+  // Learned techniques (JSON array of technique names)
+  techniques  String[] @default([])
+  
+  // IV/Growth values (JSON)
+  ivs         Json
+  growthPoints Json    @default("{}")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("user_characters")
+}
+
+model UserEquipment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  equipmentId String  // Reference to EQUIPMENT
+  quantity    Int     @default(1)
+  
+  // Equipment can be equipped by characters
+  equippedBy  UserCharacter[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, equipmentId])
+  @@map("user_equipment")
+}
+
+model Battle {
+  id          String   @id @default(cuid())
+  
+  // Participants
+  player1Id   String
+  player2Id   String?  // Null for AI battles
+  player1     User     @relation("UserBattles", fields: [player1Id], references: [id])
+  
+  // Battle settings
+  isAIBattle  Boolean  @default(true)
+  aiMindset   String?  // AIMindset enum value
+  
+  // Battle state
+  status      String   @default("waiting") // waiting, active, completed, cancelled
+  winnerId    String?  // User ID of winner, null if ongoing
+  
+  // Serialized battle data
+  battleData  Json?    // Complete battle state for resuming
+  battleLog   String[] @default([])
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  
+  @@map("battles")
+}
+
+model Tournament {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  
+  // Tournament settings
+  maxParticipants Int
+  entryFee        Int     @default(0)
+  prizePool       Int     @default(0)
+  
+  // Status
+  status      String   @default("registration") // registration, active, completed
+  startDate   DateTime
+  endDate     DateTime?
+  
+  // Participants
+  participants TournamentParticipant[]
+  matches      TournamentMatch[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("tournaments")
+}
+
+model TournamentParticipant {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  
+  // Participant data
+  teamName     String?
+  seed         Int?       // Tournament seeding
+  eliminated   Boolean    @default(false)
+  
+  createdAt    DateTime   @default(now())
+  
+  @@unique([tournamentId, userId])
+  @@map("tournament_participants")
+}
+
+model TournamentMatch {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  // Match details
+  round        Int
+  matchNumber  Int
+  player1Id    String
+  player2Id    String
+  winnerId     String?
+  
+  // Match data
+  battleId     String?    // Reference to Battle if completed
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  @@map("tournament_matches")
+}
+
+model Shop {
+  id          String   @id @default(cuid())
+  itemType    String   // "character", "equipment", "technique"
+  itemId      String   // Reference to game data
+  
+  price       Int
+  currency    String   @default("coins")
+  
+  // Availability
+  available   Boolean  @default(true)
+  stock       Int?     // Null = unlimited
+  
+  // Featured/special items
+  featured    Boolean  @default(false)
+  discount    Int?     // Percentage discount
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("shop_items")
+}
+
+model DailyReward {
+  id        String   @id @default(cuid())
+  userId    String
+  
+  // Reward details
+  day       Int      // Day number in streak
+  claimed   Boolean  @default(false)
+  reward    Json     // Reward contents (currency, items, etc.)
+  
+  // Timestamps
+  date      DateTime @default(now()) // Date this reward is for
+  claimedAt DateTime?
+  
+  @@unique([userId, date])
+  @@map("daily_rewards")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  
+  // Requirements
+  type        String   // "wins", "battles", "characters_collected", etc.
+  target      Int      // Target value to achieve
+  reward      Json     // Reward for completion
+  
+  // Achievement unlocks
+  unlockedBy  UserAchievement[]
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  
+  progress      Int         @default(0)
+  completed     Boolean     @default(false)
+  completedAt   DateTime?
+  
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
 }
