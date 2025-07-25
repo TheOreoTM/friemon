@@ -14,6 +14,8 @@ export interface BattleSession {
 	userId: string;
 	isAIBattle: boolean;
 	createdAt: Date;
+	timeoutCount: number;
+	lastActionTime: Date;
 }
 
 export class BattleManager {
@@ -41,7 +43,9 @@ export class BattleManager {
 			interface: battleInterface,
 			userId,
 			isAIBattle: true,
-			createdAt: new Date()
+			createdAt: new Date(),
+			timeoutCount: 0,
+			lastActionTime: new Date()
 		};
 
 		this.activeBattles.set(userId, session);
@@ -67,7 +71,9 @@ export class BattleManager {
 			interface: battleInterface,
 			userId: player1Id, // Primary user (challenger)
 			isAIBattle: false,
-			createdAt: new Date()
+			createdAt: new Date(),
+			timeoutCount: 0,
+			lastActionTime: new Date()
 		};
 
 		this.activeBattles.set(player1Id, session);
@@ -191,6 +197,10 @@ export class BattleManager {
 				};
 			}
 
+			// Reset timeout count on successful action
+			session.timeoutCount = 0;
+			session.lastActionTime = new Date();
+
 			// Advance turn
 			battle.nextTurn();
 
@@ -250,6 +260,38 @@ export class BattleManager {
 
 	public static getActiveBattleCount(): number {
 		return this.activeBattles.size;
+	}
+
+	public static handleTimeout(userId: string): { forfeit: boolean; message: string } {
+		const session = this.getBattle(userId);
+		if (!session) {
+			return { forfeit: false, message: 'Battle not found!' };
+		}
+
+		session.timeoutCount++;
+		session.lastActionTime = new Date();
+
+		if (session.timeoutCount >= 3) {
+			// Auto-forfeit after 3 timeouts
+			session.battle.endBattle('opponent');
+			this.activeBattles.delete(userId);
+			return { 
+				forfeit: true, 
+				message: `You have timed out 3 times and automatically forfeited the battle!` 
+			};
+		}
+
+		// Skip turn and advance to AI/opponent
+		if (session.isAIBattle && session.aiEngine && !session.battle.isComplete()) {
+			this.processAITurn(session);
+		}
+		
+		session.battle.nextTurn();
+
+		return { 
+			forfeit: false, 
+			message: `⏰ Turn timed out! (${session.timeoutCount}/3 timeouts)` 
+		};
 	}
 
 	public static cleanupOldBattles(): void {
