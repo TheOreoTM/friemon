@@ -12,13 +12,17 @@ export class BattleCollector {
 		const collector = message.createMessageComponentCollector({
 			componentType: ComponentType.Button,
 			filter: (interaction) => {
-				return interaction.user.id === userId && interaction.customId.startsWith('battle_');
+				return interaction.user.id === userId && (interaction.customId.startsWith('battle_') || interaction.customId.startsWith('challenge_'));
 			},
 			time: this.TURN_TIMEOUT
 		});
 
 		collector.on('collect', async (interaction: ButtonInteraction) => {
-			await this.handleButtonInteraction(interaction, userId);
+			if (interaction.customId.startsWith('challenge_')) {
+				await this.handleChallengeInteraction(interaction);
+			} else {
+				await this.handleButtonInteraction(interaction, userId);
+			}
 		});
 
 		collector.on('end', async (_collected, reason) => {
@@ -290,6 +294,74 @@ export class BattleCollector {
 		if (collector) {
 			collector.stop('manual');
 			this.activeCollectors.delete(userId);
+		}
+	}
+
+	public static createChallengeCollector(message: Message): void {
+		const collector = message.createMessageComponentCollector({
+			componentType: ComponentType.Button,
+			filter: (interaction) => {
+				return interaction.customId.startsWith('challenge_');
+			},
+			time: 5 * 60 * 1000 // 5 minutes for challenge acceptance
+		});
+
+		collector.on('collect', async (interaction: ButtonInteraction) => {
+			await this.handleChallengeInteraction(interaction);
+		});
+
+		collector.on('end', async (_collected, reason) => {
+			if (reason === 'time') {
+				const embed = new EmbedBuilder()
+					.setTitle('⏰ Challenge Expired')
+					.setColor(0x95a5a6)
+					.setDescription('The battle challenge has expired.');
+
+				await message.edit({
+					content: null,
+					embeds: [embed],
+					components: []
+				});
+			}
+		});
+	}
+
+	private static async handleChallengeInteraction(interaction: ButtonInteraction): Promise<void> {
+		const [action, , challengerId] = interaction.customId.split('_');
+		const responderId = interaction.user.id;
+
+		if (action === 'accept') {
+			// Start a player vs player battle
+			const session = BattleManager.createPlayerBattle(challengerId, responderId);
+
+			// Create battle display
+			const statusEmbed = session.interface.createBattleStatusEmbed();
+			const actionButtons = session.interface.createActionButtons();
+
+			statusEmbed.setDescription(`${interaction.user} accepted the challenge!`);
+
+			await interaction.update({
+				content: `⚔️ **Battle Started!**`,
+				embeds: [statusEmbed],
+				components: [actionButtons]
+			});
+
+			// Create collectors for both players
+			const message = interaction.message as Message;
+			this.createCollector(message, challengerId);
+			this.createCollector(message, responderId);
+
+		} else if (action === 'decline') {
+			const embed = new EmbedBuilder()
+				.setTitle('❌ Challenge Declined')
+				.setColor(0xe74c3c)
+				.setDescription(`${interaction.user} declined the battle challenge.`);
+
+			await interaction.update({
+				content: null,
+				embeds: [embed],
+				components: []
+			});
 		}
 	}
 

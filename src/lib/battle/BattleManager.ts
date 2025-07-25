@@ -16,6 +16,8 @@ export interface BattleSession {
 	createdAt: Date;
 	timeoutCount: number;
 	lastActionTime: Date;
+	userActionTaken: boolean;
+	opponentActionTaken: boolean;
 }
 
 export class BattleManager {
@@ -45,7 +47,9 @@ export class BattleManager {
 			isAIBattle: true,
 			createdAt: new Date(),
 			timeoutCount: 0,
-			lastActionTime: new Date()
+			lastActionTime: new Date(),
+			userActionTaken: false,
+			opponentActionTaken: false
 		};
 
 		this.activeBattles.set(userId, session);
@@ -73,7 +77,9 @@ export class BattleManager {
 			isAIBattle: false,
 			createdAt: new Date(),
 			timeoutCount: 0,
-			lastActionTime: new Date()
+			lastActionTime: new Date(),
+			userActionTaken: false,
+			opponentActionTaken: false
 		};
 
 		this.activeBattles.set(player1Id, session);
@@ -181,9 +187,22 @@ export class BattleManager {
 			// Add action to battle log
 			battle.addToBattleLog(actionResult);
 
+			// Mark that user has taken their action
+			session.userActionTaken = true;
+
 			// Process AI turn if it's an AI battle and battle is not complete
 			if (session.isAIBattle && aiEngine && !battle.isComplete()) {
 				await this.processAITurn(session);
+				session.opponentActionTaken = true;
+			}
+
+			// Check if both players have taken their actions (or it's AI battle)
+			if ((session.userActionTaken && session.opponentActionTaken) || session.isAIBattle) {
+				// Advance turn only when both players have acted
+				battle.nextTurn();
+				// Reset action flags for next turn
+				session.userActionTaken = false;
+				session.opponentActionTaken = false;
 			}
 
 			// Check if battle is complete
@@ -200,9 +219,6 @@ export class BattleManager {
 			// Reset timeout count on successful action
 			session.timeoutCount = 0;
 			session.lastActionTime = new Date();
-
-			// Advance turn
-			battle.nextTurn();
 
 			return { success: true, message: actionResult };
 		} catch (error) {
@@ -287,9 +303,16 @@ export class BattleManager {
 		// Skip turn and advance to AI/opponent
 		if (session.isAIBattle && session.aiEngine && !session.battle.isComplete()) {
 			this.processAITurn(session);
+			session.opponentActionTaken = true;
 		}
 		
-		session.battle.nextTurn();
+		// Check if both players have taken their actions (or it's AI battle) before advancing turn
+		if ((session.userActionTaken && session.opponentActionTaken) || session.isAIBattle) {
+			session.battle.nextTurn();
+			// Reset action flags for next turn
+			session.userActionTaken = false;
+			session.opponentActionTaken = false;
+		}
 
 		return { 
 			forfeit: false, 

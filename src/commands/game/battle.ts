@@ -123,11 +123,17 @@ export class BattleCommand extends Command {
 			new ButtonBuilder().setCustomId(`challenge_decline_${interaction.user.id}`).setLabel('❌ Decline').setStyle(ButtonStyle.Danger)
 		);
 
-		return interaction.reply({
+		const reply = await interaction.reply({
 			content: `${opponent}, you have been challenged!`,
 			embeds: [embed],
 			components: [actionRow]
 		});
+
+		// Create collector for challenge responses
+		const message = await reply.fetch();
+		BattleCollector.createChallengeCollector(message);
+
+		return reply;
 	}
 
 	private async handleStatus(interaction: Command.ChatInputCommandInteraction) {
