@@ -54,12 +54,3 @@ export enum TerrainType {
 	AncientRuins = 'AncientRuins',
 	DemonicGround = 'DemonicGround'
 }
-
-export enum AIMindset {
-	Random = 'Random',
-	Aggressive = 'Aggressive',
-	Defensive = 'Defensive',
-	Balanced = 'Balanced',
-	Strategic = 'Strategic',
-	Masterful = 'Masterful'
-}

@@ -1,8 +1,7 @@
-import { Race, CombatCondition, AIMindset, AmbientMagicCondition, TerrainType } from './enums';
+import { Race, CombatCondition, AmbientMagicCondition, TerrainType } from './enums';
 import { Character } from '../character/Character';
 import type { Battle } from '../battle/Battle';
 import type { Technique } from '../character/Technique';
-import type { AIEngine } from '../ai/AIEngine';
 
 export interface Stats {
 	hp: number;
@@ -96,9 +95,6 @@ export interface DiscordBattle {
 	currentTurn: number;
 	waitingFor: string;
 	actionNeeded: 'technique' | 'switch' | 'defeated';
-	isAIBattle: boolean;
-	aiEngine?: AIEngine;
-	aiMindset?: AIMindset;
 	player1Technique?: number;
 	player2Technique?: number;
 	player1Ready: boolean;
@@ -119,11 +115,6 @@ export interface BattleState {
 	opponentHazards: Map<string, number>;
 }
 
-export interface AIDecision {
-	type: 'technique' | 'switch';
-	data: number;
-	reasoning: string;
-}
 
 export interface CharacterData {
 	id: string;

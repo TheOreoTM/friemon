@@ -7,7 +7,6 @@ export { createTrait } from './character/Trait';
 
 // Battle System
 export { Battle } from './battle/Battle';
-export { AIEngine } from './ai/AIEngine';
 
 // Type Definitions
 export * from './types/enums';

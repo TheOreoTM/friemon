@@ -12,7 +12,11 @@ export class BattleCollector {
 		const collector = message.createMessageComponentCollector({
 			componentType: ComponentType.Button,
 			filter: (interaction) => {
-				return interaction.user.id === userId && (interaction.customId.startsWith('battle_') || interaction.customId.startsWith('challenge_'));
+				const session = BattleManager.getBattle(userId);
+				if (!session) return false;
+				// Allow both players in the battle to interact
+				const isValidPlayer = interaction.user.id === session.player1Id || interaction.user.id === session.player2Id;
+				return isValidPlayer && (interaction.customId.startsWith('battle_') || interaction.customId.startsWith('challenge_'));
 			},
 			time: this.TURN_TIMEOUT
 		});
@@ -331,6 +335,15 @@ export class BattleCollector {
 		const responderId = interaction.user.id;
 
 		if (action === 'accept') {
+			// Validate that only the challenged player can accept
+			if (responderId === challengerId) {
+				await interaction.reply({
+					content: '❌ You cannot accept your own challenge!',
+					ephemeral: true
+				});
+				return;
+			}
+
 			// Start a player vs player battle
 			const session = BattleManager.createPlayerBattle(challengerId, responderId);
 
@@ -338,20 +351,28 @@ export class BattleCollector {
 			const statusEmbed = session.interface.createBattleStatusEmbed();
 			const actionButtons = session.interface.createActionButtons();
 
-			statusEmbed.setDescription(`${interaction.user} accepted the challenge!`);
+			statusEmbed.setDescription(`${interaction.user} accepted the challenge! Turn ${session.currentTurn}`);
 
 			await interaction.update({
-				content: `⚔️ **Battle Started!**`,
+				content: `⚔️ **Battle Started!** Both players can now take actions.`,
 				embeds: [statusEmbed],
 				components: [actionButtons]
 			});
 
-			// Create collectors for both players
+			// Create collector for the battle (both players can interact)
 			const message = interaction.message as Message;
-			this.createCollector(message, challengerId);
-			this.createCollector(message, responderId);
+			this.createCollector(message, session.player1Id);
 
 		} else if (action === 'decline') {
+			// Validate that only the challenged player can decline
+			if (responderId === challengerId) {
+				await interaction.reply({
+					content: '❌ You cannot decline your own challenge!',
+					ephemeral: true
+				});
+				return;
+			}
+
 			const embed = new EmbedBuilder()
 				.setTitle('❌ Challenge Declined')
 				.setColor(0xe74c3c)

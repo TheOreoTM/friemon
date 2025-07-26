@@ -11,48 +11,55 @@ export class BattleInterface {
 	}
 
 	public createBattleStatusEmbed(): EmbedBuilder {
-		const currentCharacter = this.battle.getCurrentCharacter();
-		const opponent = this.battle.getOpponentCharacter();
+		const userCharacter = this.battle.state.userCharacter;
+		const opponentCharacter = this.battle.state.opponentCharacter;
 		
 		const embed = new EmbedBuilder()
-			.setTitle('⚔️ Battle in Progress')
+			.setTitle('⚔️ Player vs Player Battle')
 			.setColor(this.battle.isComplete() ? 0xe74c3c : 0xf39c12)
-			.setDescription(this.battle.isComplete() ? '🏆 **Battle Complete!**' : '⚡ **Battle Active**');
+			.setDescription(this.battle.isComplete() ? '🏆 **Battle Complete!**' : `⚡ **Turn ${this.battle.state.turn} - Both players choose actions**`);
 
-		// Current turn info
-		if (currentCharacter && !this.battle.isComplete()) {
+		// Battle info
+		if (!this.battle.isComplete()) {
 			embed.addFields({
-				name: '🎯 Current Turn',
-				value: `**${currentCharacter.name}** is ready to act!`,
+				name: '🎯 Battle Status',
+				value: 'Waiting for both players to select their actions...',
 				inline: false
 			});
 		}
 
 		// Team status
 		const userTeam = this.battle.getUserCharacters();
-		const aiTeam = this.battle.getAICharacters();
+		const opponentTeam = this.battle.getOpponentCharacters();
 
 		const userStatus = userTeam.map(char => {
 			const hpBar = this.createHPBar(char);
-			const active = char === currentCharacter ? '👑' : '';
-			return `${active} **${char.name}** ${hpBar}`;
+			const active = char === userCharacter ? '👑' : '';
+			const status = char.isDefeated() ? '💀' : '';
+			return `${active}${status} **${char.name}** ${hpBar}`;
 		}).join('\n');
 
-		const aiStatus = aiTeam.map(char => {
+		const opponentStatus = opponentTeam.map(char => {
 			const hpBar = this.createHPBar(char);
-			const active = char === opponent ? '👑' : '';
-			return `${active} **${char.name}** ${hpBar}`;
+			const active = char === opponentCharacter ? '👑' : '';
+			const status = char.isDefeated() ? '💀' : '';
+			return `${active}${status} **${char.name}** ${hpBar}`;
 		}).join('\n');
 
 		embed.addFields(
 			{
-				name: '👤 Your Team',
+				name: '👤 Player 1 Team',
 				value: userStatus || 'No characters available',
 				inline: true
 			},
 			{
-				name: '🤖 Opponent Team',
-				value: aiStatus || 'No characters available',
+				name: '👥 Player 2 Team',
+				value: opponentStatus || 'No characters available',
+				inline: true
+			},
+			{
+				name: '\u200b',
+				value: '\u200b',
 				inline: true
 			}
 		);
@@ -70,9 +77,10 @@ export class BattleInterface {
 		// Winner info if battle is complete
 		if (this.battle.isComplete()) {
 			const winner = this.battle.getWinner();
+			const winnerName = winner === 'user' ? 'Player 1' : 'Player 2';
 			embed.addFields({
-				name: '🏆 Winner',
-				value: winner === 'user' ? '🎉 **You Won!**' : '💀 **You Lost!**',
+				name: '🏆 Battle Result',
+				value: `🎉 **${winnerName} Wins!**\n\n${this.battle.getBattleSummary()}`,
 				inline: false
 			});
 		}
@@ -87,38 +95,44 @@ export class BattleInterface {
 	}
 
 	public createActionButtons(): ActionRowBuilder<ButtonBuilder> {
+		const isComplete = this.battle.isComplete();
+		
 		return new ActionRowBuilder<ButtonBuilder>()
 			.addComponents(
 				new ButtonBuilder()
 					.setCustomId('battle_attack')
 					.setLabel('⚔️ Attack')
 					.setStyle(ButtonStyle.Danger)
-					.setDisabled(this.battle.isComplete()),
+					.setDisabled(isComplete),
 				new ButtonBuilder()
 					.setCustomId('battle_switch')
 					.setLabel('🔄 Switch')
 					.setStyle(ButtonStyle.Primary)
-					.setDisabled(this.battle.isComplete()),
+					.setDisabled(isComplete),
 				new ButtonBuilder()
 					.setCustomId('battle_item')
 					.setLabel('🎒 Item')
 					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(this.battle.isComplete()),
+					.setDisabled(true), // Items not implemented
 				new ButtonBuilder()
 					.setCustomId('battle_flee')
-					.setLabel('🏃 Flee')
+					.setLabel('🏃 Forfeit')
 					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(this.battle.isComplete())
+					.setDisabled(isComplete)
 			);
 	}
 
-	public createTechniqueSelectMenu(): ActionRowBuilder<StringSelectMenuBuilder> {
-		const currentCharacter = this.battle.getCurrentCharacter();
-		if (!currentCharacter) {
+	public createTechniqueSelectMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
+		// Default to player 1's character if not specified
+		const character = isPlayer1 !== false ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		if (!character) {
 			return new ActionRowBuilder<StringSelectMenuBuilder>();
 		}
 
-		const options = currentCharacter.techniques.map(techName => {
+		const options = character.techniques.filter(techName => {
+			const technique = getTechniqueByName(techName);
+			return technique && character.currentMana >= technique.manaCost;
+		}).map(techName => {
 			const technique = getTechniqueByName(techName);
 			
 			if (!technique) {
@@ -146,9 +160,11 @@ export class BattleInterface {
 			.addComponents(selectMenu);
 	}
 
-	public createSwitchSelectMenu(): ActionRowBuilder<StringSelectMenuBuilder> {
-		const availableCharacters = this.battle.getUserCharacters().filter(char => 
-			!char.isDefeated() && char !== this.battle.getCurrentCharacter()
+	public createSwitchSelectMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
+		const party = isPlayer1 !== false ? this.battle.state.userParty : this.battle.state.opponentParty;
+		const currentChar = isPlayer1 !== false ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		const availableCharacters = party.filter(char => 
+			!char.isDefeated() && char !== currentChar
 		);
 
 		if (availableCharacters.length === 0) {
@@ -246,62 +262,33 @@ export class BattleInterface {
 
 	public createBattleResultEmbed(): EmbedBuilder {
 		const winner = this.battle.getWinner();
-		const isUserWin = winner === 'user';
+		const winnerName = this.battle.getWinnerName();
 
 		const embed = new EmbedBuilder()
-			.setTitle(isUserWin ? '🎉 Victory!' : '💀 Defeat!')
-			.setColor(isUserWin ? 0x2ecc71 : 0xe74c3c)
-			.setDescription(isUserWin 
-				? 'Congratulations! You have emerged victorious!'
-				: 'Better luck next time! Don\'t give up!'
-			);
+			.setTitle('🏆 Battle Complete!')
+			.setColor(winner === 'user' ? 0x2ecc71 : winner === 'opponent' ? 0xe74c3c : 0x95a5a6)
+			.setDescription(`**${winnerName}** has won the battle!`);
 
-		// Battle statistics
-		const battleLog = this.battle.getBattleLog();
-		const turnCount = battleLog.length;
-		
-		embed.addFields(
-			{
-				name: '📊 Battle Statistics',
-				value: [
-					`⏱️ Duration: ${turnCount} turns`,
-					`🎯 Total Actions: ${battleLog.length}`,
-				].join('\n'),
-				inline: true
-			}
-		);
-
-		// Rewards (if won)
-		if (isUserWin) {
-			const baseReward = 50;
-			const bonusReward = Math.floor(Math.random() * 25) + 10;
-			const totalReward = baseReward + bonusReward;
-
-			embed.addFields({
-				name: '🎁 Battle Rewards',
-				value: [
-					`💰 Coins: +${totalReward}`,
-					`⭐ Experience: +${Math.floor(totalReward * 0.8)}`,
-					`📈 Ranking: +10 points`
-				].join('\n'),
-				inline: true
-			});
-		}
-
-		// Team final status
-		const userTeam = this.battle.getUserCharacters();
-		const survivingCount = userTeam.filter(char => !char.isDefeated()).length;
-		
+		// Add battle summary
 		embed.addFields({
-			name: '👥 Team Status',
-			value: `${survivingCount}/${userTeam.length} characters remaining`,
+			name: '📊 Battle Summary',
+			value: this.battle.getBattleSummary(),
 			inline: false
 		});
 
+		// Show final battle log
+		const recentLog = this.battle.getBattleLog().slice(-5);
+		if (recentLog.length > 0) {
+			embed.addFields({
+				name: '📜 Final Battle Log',
+				value: recentLog.join('\n'),
+				inline: false
+			});
+		}
+
+
 		embed.setFooter({ 
-			text: isUserWin 
-				? 'Use /battle ai to start another battle!' 
-				: 'Train your characters and try again!'
+			text: 'Thanks for playing! Challenge someone else with /battle @user'
 		});
 
 		return embed;

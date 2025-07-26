@@ -5,10 +5,12 @@ import { BattleState, TechniqueEffect } from '../types/interfaces';
 import { HazardType } from '../types/types';
 import { getAffinityAdvantage } from '../data/AffinityChart';
 import { randomFloat } from '../utils/helpers';
+import { getTechniqueByName } from '../data/Techniques';
 
 export class Battle {
   public state: BattleState;
   private battleLog: string[] = [];
+  private turnActions: Map<string, { action: string; target?: string }> = new Map();
   
   constructor(
     userParty: Character[],
@@ -16,6 +18,14 @@ export class Battle {
     ambientMagic: AmbientMagicCondition = AmbientMagicCondition.None,
     terrain: TerrainType = TerrainType.Normal
   ) {
+    // Validate parties
+    if (!this.validateParty(userParty)) {
+      throw new Error('Invalid user party: must have 1-3 valid characters');
+    }
+    if (!this.validateParty(opponentParty)) {
+      throw new Error('Invalid opponent party: must have 1-3 valid characters');
+    }
+
     this.state = {
       userCharacter: userParty[0],
       opponentCharacter: opponentParty[0],
@@ -31,6 +41,20 @@ export class Battle {
     };
     
     this.initializeBattle();
+  }
+
+  private validateParty(party: Character[]): boolean {
+    if (!party || party.length === 0 || party.length > 3) {
+      return false;
+    }
+    
+    return party.every(character => 
+      character && 
+      typeof character.name === 'string' &&
+      character.maxHP > 0 &&
+      character.techniques && 
+      character.techniques.length > 0
+    );
   }
 
   private initializeBattle(): void {
@@ -59,22 +83,23 @@ export class Battle {
   }
 
   public executeTechnique(user: Character, target: Character, technique: Technique): boolean {
-    if (user.isDefeated()) {
-      this.logMessage(`${user.name} is defeated and cannot act!`);
+    // Validate technique execution
+    const validationResult = this.validateTechniqueExecution(user, target, technique);
+    if (!validationResult.valid) {
+      this.logMessage(validationResult.message);
       return false;
     }
 
-    if (!user.canAct()) {
-      this.logMessage(`${user.name} cannot act due to their condition!`);
-      return false;
-    }
-
+    // Consume mana
     if (!user.consumeMana(technique.manaCost)) {
       this.logMessage(`${user.name} doesn't have enough mana to use ${technique.name}!`);
       return false;
     }
 
     this.logMessage(`${user.name} uses ${technique.name}!`);
+
+    // Apply pre-technique effects
+    this.applyPreTechniqueEffects(user, target, technique);
 
     // Handle technique effects
     if (technique.effects) {
@@ -89,12 +114,54 @@ export class Battle {
       this.dealDamage(user, target, damage, technique);
     }
 
-    // Trigger trait effects
+    // Apply post-technique effects
+    this.applyPostTechniqueEffects(user, target, technique);
+
+    return true;
+  }
+
+  private validateTechniqueExecution(user: Character, target: Character, technique: Technique): { valid: boolean; message: string } {
+    if (user.isDefeated()) {
+      return { valid: false, message: `${user.name} is defeated and cannot act!` };
+    }
+
+    if (!user.canAct()) {
+      return { valid: false, message: `${user.name} cannot act due to their condition!` };
+    }
+
+    if (target.isDefeated()) {
+      return { valid: false, message: `${target.name} is already defeated!` };
+    }
+
+    if (user.currentMana < technique.manaCost) {
+      return { valid: false, message: `${user.name} doesn't have enough mana to use ${technique.name}!` };
+    }
+
+    return { valid: true, message: '' };
+  }
+
+  private applyPreTechniqueEffects(user: Character, target: Character, _technique: Technique): void {
+    // Trigger user's trait effects before striking
     if (user.trait.onStrike) {
       user.trait.onStrike(user, target, this);
     }
+    
+    // Equipment pre-strike effects would go here when implemented
+    // if (user.equipment?.onStrike) {
+    //   user.equipment.onStrike(user, target, this);
+    // }
+  }
 
-    return true;
+  private applyPostTechniqueEffects(user: Character, _target: Character, _technique: Technique): void {
+    // Apply recoil damage if technique has it (would need to add recoilPercent to Technique interface)
+    // if (technique.recoilPercent && technique.recoilPercent > 0) {
+    //   const recoilDamage = Math.floor(user.maxHP * (technique.recoilPercent / 100));
+    //   user.takeDamage(recoilDamage);
+    //   this.logMessage(`${user.name} takes ${recoilDamage} recoil damage!`);
+    // }
+    
+    // Placeholder for post-technique effects
+    void user; // Prevent unused parameter warning
   }
 
   private calculateDamage(user: Character, target: Character, technique: Technique): number {
@@ -269,14 +336,16 @@ export class Battle {
   public switchCharacter(isUser: boolean, newIndex: number): boolean {
     const party = isUser ? this.state.userParty : this.state.opponentParty;
     
-    if (newIndex < 0 || newIndex >= party.length || party[newIndex].isDefeated()) {
+    // Validate switch
+    if (!this.validateSwitch(party, newIndex)) {
       return false;
     }
 
     const newCharacter = party[newIndex];
+    const currentCharacter = isUser ? this.state.userCharacter : this.state.opponentCharacter;
     
     if (isUser) {
-      this.logMessage(`${this.state.userCharacter.name}, return!`);
+      this.logMessage(`${currentCharacter.name}, return!`);
       this.state.userCharacter = newCharacter;
       this.state.userActiveIndex = newIndex;
     } else {
@@ -296,43 +365,100 @@ export class Battle {
     return true;
   }
 
-  public processTurnEnd(): void {
-    // Apply condition damage
-    this.state.userCharacter.applyConditionDamage();
-    this.state.opponentCharacter.applyConditionDamage();
+  private validateSwitch(party: Character[], newIndex: number): boolean {
+    if (newIndex < 0 || newIndex >= party.length) {
+      return false;
+    }
     
-    // Update conditions
-    this.state.userCharacter.updateCondition();
-    this.state.opponentCharacter.updateCondition();
+    const character = party[newIndex];
+    return character && !character.isDefeated();
+  }
+
+  public processTurnEnd(): void {
+    this.logMessage(`=== Turn ${this.state.turn} Results ===`);
+    
+    // Apply condition damage
+    this.applyConditionDamage();
+    
+    // Update conditions  
+    this.updateConditions();
     
     // Trigger turn end effects
-    if (this.state.userCharacter.trait.onTurnEnd) {
-      this.state.userCharacter.trait.onTurnEnd(this.state.userCharacter, this);
-    }
-    
-    if (this.state.opponentCharacter.trait.onTurnEnd) {
-      this.state.opponentCharacter.trait.onTurnEnd(this.state.opponentCharacter, this);
-    }
-    
-    // Equipment turn end effects
-    if (this.state.userCharacter.equipment && this.state.userCharacter.equipment.onTurnEnd) {
-      this.state.userCharacter.equipment.onTurnEnd(this.state.userCharacter, this);
-    }
-    
-    if (this.state.opponentCharacter.equipment && this.state.opponentCharacter.equipment.onTurnEnd) {
-      this.state.opponentCharacter.equipment.onTurnEnd(this.state.opponentCharacter, this);
-    }
+    this.processTurnEndEffects();
     
     // Apply hazard damage
     this.applyHazardDamage();
     
     // Restore mana based on ambient magic
+    this.processAmbientMagicEffects();
+    
+    // Check for forced switches due to defeated characters
+    this.handleDefeatedCharacters();
+    
+    // Increment turn counter
+    this.state.turn++;
+    
+    // Clear turn actions for next turn
+    this.turnActions.clear();
+    
+    this.logMessage(`=== Turn ${this.state.turn} begins ===`);
+  }
+
+  private applyConditionDamage(): void {
+    if (this.state.userCharacter.condition !== CombatCondition.Normal) {
+      this.state.userCharacter.applyConditionDamage();
+    }
+    if (this.state.opponentCharacter.condition !== CombatCondition.Normal) {
+      this.state.opponentCharacter.applyConditionDamage();
+    }
+  }
+
+  private updateConditions(): void {
+    this.state.userCharacter.updateCondition();
+    this.state.opponentCharacter.updateCondition();
+  }
+
+  private processTurnEndEffects(): void {
+    // User character trait effects
+    if (this.state.userCharacter.trait.onTurnEnd) {
+      this.state.userCharacter.trait.onTurnEnd(this.state.userCharacter, this);
+    }
+    
+    // Opponent character trait effects
+    if (this.state.opponentCharacter.trait.onTurnEnd) {
+      this.state.opponentCharacter.trait.onTurnEnd(this.state.opponentCharacter, this);
+    }
+    
+    // Equipment effects
+    if (this.state.userCharacter.equipment?.onTurnEnd) {
+      this.state.userCharacter.equipment.onTurnEnd(this.state.userCharacter, this);
+    }
+    
+    if (this.state.opponentCharacter.equipment?.onTurnEnd) {
+      this.state.opponentCharacter.equipment.onTurnEnd(this.state.opponentCharacter, this);
+    }
+  }
+
+  private processAmbientMagicEffects(): void {
     if (this.state.ambientMagic === AmbientMagicCondition.DenseMana) {
       this.state.userCharacter.restoreMana(5);
       this.state.opponentCharacter.restoreMana(5);
+      this.logMessage('Dense mana in the air restores mana to both fighters!');
+    } else if (this.state.ambientMagic === AmbientMagicCondition.NullField) {
+      // Reduce mana by 2 each turn in null field
+      this.state.userCharacter.consumeMana(2);
+      this.state.opponentCharacter.consumeMana(2);
+      this.logMessage('The null field drains mana from both fighters!');
     }
-    
-    this.state.turn++;
+  }
+
+  private handleDefeatedCharacters(): void {
+    if (this.state.userCharacter.isDefeated() && !this.isUserDefeated()) {
+      this.autoSwitchCharacter(true);
+    }
+    if (this.state.opponentCharacter.isDefeated() && !this.isOpponentDefeated()) {
+      this.autoSwitchCharacter(false);
+    }
   }
 
   private applyHazardDamage(): void {
@@ -386,6 +512,26 @@ export class Battle {
     return null;
   }
 
+  public getWinnerName(): string {
+    const winner = this.getWinner();
+    if (winner === 'user') return 'Player 1';
+    if (winner === 'opponent') return 'Player 2';
+    return 'No winner yet';
+  }
+
+  public getBattleSummary(): string {
+    const winner = this.getWinnerName();
+    const turnCount = this.state.turn - 1; // Subtract 1 since turn increments at start
+    const userCharactersLeft = this.state.userParty.filter(char => !char.isDefeated()).length;
+    const opponentCharactersLeft = this.state.opponentParty.filter(char => !char.isDefeated()).length;
+    
+    return `**Battle Summary**\n` +
+           `• Winner: ${winner}\n` +
+           `• Duration: ${turnCount} turns\n` +
+           `• Player 1 Characters Remaining: ${userCharactersLeft}/3\n` +
+           `• Player 2 Characters Remaining: ${opponentCharactersLeft}/3`;
+  }
+
   public getBattleLog(): string[] {
     return [...this.battleLog];
   }
@@ -395,7 +541,14 @@ export class Battle {
   }
 
   private logMessage(message: string): void {
-    this.battleLog.push(message);
+    if (message && typeof message === 'string') {
+      this.battleLog.push(`[Turn ${this.state.turn}] ${message}`);
+      
+      // Limit battle log size to prevent memory issues
+      if (this.battleLog.length > 100) {
+        this.battleLog = this.battleLog.slice(-50); // Keep last 50 messages
+      }
+    }
   }
 
   // Environment effect methods
@@ -450,7 +603,7 @@ export class Battle {
     return this.state.userParty;
   }
 
-  public getAICharacters(): Character[] {
+  public getOpponentCharacters(): Character[] {
     return this.state.opponentParty;
   }
 
@@ -462,20 +615,72 @@ export class Battle {
     return this.state;
   }
 
+  public validateBattleState(): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // Check if battle state is consistent
+    if (!this.state.userCharacter || !this.state.opponentCharacter) {
+      errors.push('Missing active characters');
+    }
+    
+    if (this.state.userActiveIndex < 0 || this.state.userActiveIndex >= this.state.userParty.length) {
+      errors.push('Invalid user active index');
+    }
+    
+    if (this.state.opponentActiveIndex < 0 || this.state.opponentActiveIndex >= this.state.opponentParty.length) {
+      errors.push('Invalid opponent active index');
+    }
+    
+    if (this.state.userParty[this.state.userActiveIndex] !== this.state.userCharacter) {
+      errors.push('User active character mismatch');
+    }
+    
+    if (this.state.opponentParty[this.state.opponentActiveIndex] !== this.state.opponentCharacter) {
+      errors.push('Opponent active character mismatch');
+    }
+    
+    if (this.state.turn < 1) {
+      errors.push('Invalid turn number');
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
   public nextTurn(): void {
     this.processTurnEnd();
   }
 
   public endBattle(winner: 'user' | 'opponent'): void {
+    if (!winner || (winner !== 'user' && winner !== 'opponent')) {
+      throw new Error('Invalid winner specified');
+    }
+    
+    this.logMessage(`Battle ended! Winner: ${winner === 'user' ? 'Player 1' : 'Player 2'}`);
+    
     // Force end the battle by defeating all characters of the losing side
     if (winner === 'opponent') {
-      this.state.userParty.forEach(char => char.takeDamage(char.currentHP));
+      this.state.userParty.forEach(char => {
+        if (!char.isDefeated()) {
+          char.takeDamage(char.currentHP);
+        }
+      });
     } else {
-      this.state.opponentParty.forEach(char => char.takeDamage(char.currentHP));
+      this.state.opponentParty.forEach(char => {
+        if (!char.isDefeated()) {
+          char.takeDamage(char.currentHP);
+        }
+      });
     }
   }
 
   public switchCharacterByObject(character: Character): boolean {
+    if (!character) {
+      return false;
+    }
+    
     // Find which party the character belongs to and switch to it
     const userIndex = this.state.userParty.findIndex(char => char === character);
     if (userIndex !== -1) {
@@ -494,7 +699,7 @@ export class Battle {
     const party = isUser ? this.state.userParty : this.state.opponentParty;
     const currentIndex = isUser ? this.state.userActiveIndex : this.state.opponentActiveIndex;
     
-    // Find the next available character that isn't defeated
+    // Find the first available character that isn't defeated
     for (let i = 0; i < party.length; i++) {
       if (i !== currentIndex && !party[i].isDefeated()) {
         const success = this.switchCharacter(isUser, i);
@@ -506,8 +711,35 @@ export class Battle {
     }
     
     // No available characters to switch to - the side has lost
-    const side = isUser ? 'user' : 'opponent';
-    this.logMessage(`${side === 'user' ? 'Your' : 'Opponent\'s'} team has no more characters able to battle!`);
+    const playerName = isUser ? 'Player 1' : 'Player 2';
+    this.logMessage(`${playerName} has no more characters able to battle!`);
     return false;
+  }
+
+  public canPlayerAct(isUser: boolean): boolean {
+    const character = isUser ? this.state.userCharacter : this.state.opponentCharacter;
+    return !character.isDefeated() && character.canAct();
+  }
+
+  public getPlayerActionOptions(isUser: boolean): { attacks: string[]; switches: string[]; canFlee: boolean } {
+    const character = isUser ? this.state.userCharacter : this.state.opponentCharacter;
+    const party = isUser ? this.state.userParty : this.state.opponentParty;
+    const activeIndex = isUser ? this.state.userActiveIndex : this.state.opponentActiveIndex;
+    
+    const attacks = character.isDefeated() ? [] : character.techniques.filter(tech => {
+      const technique = getTechniqueByName(tech);
+      return technique && character.currentMana >= technique.manaCost;
+    });
+    
+    const switches = party
+      .map((char, index) => ({ char, index }))
+      .filter(({ char, index }) => index !== activeIndex && !char.isDefeated())
+      .map(({ char }) => char.name);
+    
+    return {
+      attacks,
+      switches,
+      canFlee: true // Players can always attempt to flee
+    };
   }
 }
