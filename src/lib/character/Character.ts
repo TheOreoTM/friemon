@@ -26,8 +26,8 @@ export class Character {
 	mana: number;
 	maxMana: number;
 	currentMana: number;
-	condition: CombatCondition;
-	conditionTurns: number;
+	conditions: Set<CombatCondition>;
+	conditionDurations: Map<CombatCondition, number>;
 	statBoosts: StatBoosts;
 	volatileEffects: VolatileEffect;
 
@@ -46,8 +46,8 @@ export class Character {
 		this.trait = data.trait!;
 		this.equipment = data.equipment || null;
 		this.techniques = data.techniques || [];
-		this.condition = CombatCondition.Normal;
-		this.conditionTurns = 0;
+		this.conditions = new Set();
+		this.conditionDurations = new Map();
 		this.statBoosts = { attack: 0, defense: 0, magicAttack: 0, magicDefense: 0, speed: 0 };
 		this.volatileEffects = this.createEmptyVolatileEffects();
 
@@ -66,8 +66,8 @@ export class Character {
 		this.maxMana = this.calculateMaxMana();
 		this.mana = this.maxMana;
 		this.currentMana = this.maxMana;
-		this.condition = CombatCondition.Normal;
-		this.conditionTurns = 0;
+		this.conditions.clear();
+		this.conditionDurations.clear();
 		this.statBoosts = { attack: 0, defense: 0, magicAttack: 0, magicDefense: 0, speed: 0 };
 		this.volatileEffects = this.createEmptyVolatileEffects();
 	}
@@ -210,33 +210,63 @@ export class Character {
 	}
 
 	canAct(): boolean {
-		if (this.condition === CombatCondition.Stunned) return false;
-		if (this.condition === CombatCondition.Dazed) {
-			this.condition = CombatCondition.Normal;
+		if (this.conditions.has(CombatCondition.Stunned)) return false;
+		if (this.conditions.has(CombatCondition.Dazed)) {
+			this.removeCondition(CombatCondition.Dazed);
 			return false;
 		}
-		if (this.condition === CombatCondition.Fear) {
+		if (this.conditions.has(CombatCondition.Fear)) {
 			return Math.random() > 0.25; // 25% chance to not act
 		}
 		return true;
 	}
 
 	applyConditionDamage(): void {
-		if (this.condition === CombatCondition.Exhausted) {
+		if (this.conditions.has(CombatCondition.Exhausted)) {
 			const damage = Math.floor(this.maxHP / 8);
 			this.takeDamage(damage);
 		}
 	}
 
 	updateCondition(): void {
-		if (this.conditionTurns > 0) {
-			this.conditionTurns--;
-			if (this.conditionTurns === 0) {
-				if (this.condition !== CombatCondition.Exhausted) {
-					this.condition = CombatCondition.Normal;
-				}
+		const conditionsToRemove: CombatCondition[] = [];
+		
+		for (const [condition, turns] of this.conditionDurations) {
+			const newTurns = turns - 1;
+			if (newTurns <= 0) {
+				conditionsToRemove.push(condition);
+			} else {
+				this.conditionDurations.set(condition, newTurns);
 			}
 		}
+		
+		for (const condition of conditionsToRemove) {
+			this.removeCondition(condition);
+		}
+	}
+
+	addCondition(condition: CombatCondition, duration: number = 3): void {
+		if (condition === CombatCondition.Normal) return;
+		
+		this.conditions.add(condition);
+		this.conditionDurations.set(condition, duration);
+	}
+
+	removeCondition(condition: CombatCondition): void {
+		this.conditions.delete(condition);
+		this.conditionDurations.delete(condition);
+	}
+
+	hasCondition(condition: CombatCondition): boolean {
+		return this.conditions.has(condition);
+	}
+
+	hasAnyCondition(): boolean {
+		return this.conditions.size > 0;
+	}
+
+	getConditionNames(): string[] {
+		return Array.from(this.conditions).map(condition => condition.toString());
 	}
 
 	modifyStatBoost(stat: BoostableStat, stages: number): void {
@@ -318,10 +348,7 @@ export class Character {
 	}
 
 	getActiveConditions(): string[] {
-		if (this.condition !== CombatCondition.Normal) {
-			return [this.condition.toString()];
-		}
-		return [];
+		return this.getConditionNames();
 	}
 
 	getTechniqueNames(): string[] {

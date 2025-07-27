@@ -54,3 +54,29 @@ export enum TerrainType {
 	AncientRuins = 'AncientRuins',
 	DemonicGround = 'DemonicGround'
 }
+
+export enum TechniqueEffectType {
+	Condition = 'condition',
+	StatBoost = 'stat_boost',
+	Heal = 'heal',
+	VolatileEffect = 'volatile_effect'
+}
+
+export enum EffectTarget {
+	Self = 'self',
+	Opponent = 'opponent',
+	Party = 'party'
+}
+
+export enum VolatileEffectType {
+	ManaShield = 'manaShield',
+	LeechCurse = 'leechCurse',
+	Tormented = 'tormented',
+	Challenged = 'challenged',
+	Channeling = 'channeling',
+	Immaterial = 'immaterial',
+	FocusedAura = 'focusedAura',
+	MistyAura = 'mistyAura',
+	Mimicry = 'mimicry',
+	MagicSeal = 'magicSeal'
+}

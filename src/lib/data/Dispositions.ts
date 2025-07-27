@@ -1,42 +1,41 @@
 import { Disposition } from '../types/interfaces';
-import { createDisposition } from '../character/Disposition';
 
 export const DISPOSITIONS: { [key: string]: Disposition } = {
-	calm: createDisposition({
+	calm: {
 		name: 'Calm',
 		increasedStat: 'magicDefense',
 		decreasedStat: 'attack'
-	}),
-	fierce: createDisposition({
+	},
+	fierce: {
 		name: 'Fierce',
 		increasedStat: 'attack',
 		decreasedStat: 'magicDefense'
-	}),
-	studious: createDisposition({
+	},
+	studious: {
 		name: 'Studious',
 		increasedStat: 'magicAttack',
 		decreasedStat: 'defense'
-	}),
-	stoic: createDisposition({
+	},
+	stoic: {
 		name: 'Stoic',
 		increasedStat: 'defense',
 		decreasedStat: 'magicAttack'
-	}),
-	swift: createDisposition({
+	},
+	swift: {
 		name: 'Swift',
 		increasedStat: 'speed',
 		decreasedStat: 'hp'
-	}),
-	hardy: createDisposition({
+	},
+	hardy: {
 		name: 'Hardy',
 		increasedStat: 'hp',
 		decreasedStat: 'speed'
-	}),
-	balanced: createDisposition({
+	},
+	balanced: {
 		name: 'Balanced',
 		increasedStat: 'hp',
 		decreasedStat: 'hp' // No actual change
-	})
+	}
 };
 
 export const getRandomDisposition = (): Disposition => {

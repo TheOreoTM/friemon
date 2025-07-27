@@ -1,7 +1,8 @@
 import { Technique } from '../character/Technique';
-import { Affinity, TechniqueCategory, CombatCondition } from '../types/enums';
+import { Affinity, TechniqueCategory, CombatCondition, TechniqueEffectType, EffectTarget, VolatileEffectType } from '../types/enums';
 import { Character } from '../character/Character';
 import { Battle } from '../battle/Battle';
+import { TechniqueEffect, createConditionEffect, createStatBoostEffect, createHealEffect, createVolatileEffect } from '../character/TechniqueEffect';
 
 export const TECHNIQUES: { [key: string]: Technique } = {
 	// === DESTRUCTION AFFINITY ===
@@ -36,14 +37,7 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 16,
 		description: 'A pulse of dark energy.',
 		properties: { magicBased: true },
-		effects: [
-			{
-				type: 'condition',
-				value: CombatCondition.Fear,
-				chance: 0.2,
-				target: 'opponent'
-			}
-		]
+		effects: [createConditionEffect(CombatCondition.Fear, 0.2, EffectTarget.Opponent)]
 	}),
 
 	annihilation: new Technique({
@@ -79,12 +73,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'A small flame that can cause burns.',
 		properties: { magicBased: true },
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Exhausted,
 				chance: 0.3,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -141,12 +135,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'A pulsing wave of water that can confuse.',
 		properties: { magicBased: true },
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Confused,
 				chance: 0.2,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -171,12 +165,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'A beam of freezing energy.',
 		properties: { magicBased: true },
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Stunned,
 				chance: 0.25,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -190,12 +184,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'A devastating ice storm.',
 		properties: { magicBased: true, areaEffect: true },
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Stunned,
 				chance: 0.4,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -277,12 +271,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 15,
 		description: 'Creates a protective wall of stone.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'defense', stages: 2 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -306,14 +300,7 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		precision: 1.0,
 		manaCost: 10,
 		description: 'Creates a protective barrier using mana.',
-		effects: [
-			{
-				type: 'volatile_effect',
-				value: 'manaShield',
-				chance: 1.0,
-				target: 'self'
-			}
-		]
+		effects: [createVolatileEffect(VolatileEffectType.ManaShield, 1.0, EffectTarget.Self)]
 	}),
 
 	speedBoost: new Technique({
@@ -324,14 +311,7 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		precision: 1.0,
 		manaCost: 12,
 		description: 'Increases speed dramatically.',
-		effects: [
-			{
-				type: 'stat_boost',
-				value: { stat: 'speed', stages: 2 },
-				chance: 1.0,
-				target: 'self'
-			}
-		]
+		effects: [createStatBoostEffect('speed', 2, 1.0, EffectTarget.Self)]
 	}),
 
 	powerBoost: new Technique({
@@ -343,12 +323,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 15,
 		description: 'Increases attack power.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'attack', stages: 2 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -361,12 +341,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 15,
 		description: 'Increases magical attack power.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'magicAttack', stages: 2 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -377,14 +357,14 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		power: 0,
 		precision: 0.85,
 		manaCost: 20,
-		description: 'Seals the opponent\'s magical abilities.',
+		description: "Seals the opponent's magical abilities.",
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.MagicSeal,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -397,12 +377,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 25,
 		description: 'Manipulates time to act multiple times.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'speed', stages: 3 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -416,12 +396,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 8,
 		description: 'Reinforces magical defenses.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'magicDefense', stages: 2 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -434,12 +414,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 12,
 		description: 'Creates an impenetrable defensive barrier.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'defense', stages: 3 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -452,18 +432,18 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 15,
 		description: 'Hardens resolve against status effects.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'magicDefense', stages: 1 },
 				chance: 1.0,
-				target: 'self'
-			},
-			{
-				type: 'stat_boost',
+				target: EffectTarget.Self
+			}),
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'defense', stages: 1 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -476,14 +456,7 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		precision: 1.0,
 		manaCost: 12,
 		description: 'Basic healing spell.',
-		effects: [
-			{
-				type: 'heal',
-				value: 0.5,
-				chance: 1.0,
-				target: 'self'
-			}
-		]
+		effects: [createHealEffect(0.5, 1.0, EffectTarget.Self)]
 	}),
 
 	regeneration: new Technique({
@@ -495,12 +468,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 18,
 		description: 'Gradually restores HP over time.',
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 0.3,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -513,12 +486,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 35,
 		description: 'Completely restores HP and cures conditions.',
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 1.0,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -531,12 +504,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 25,
 		description: 'Heals all party members.',
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 0.4,
 				chance: 1.0,
-				target: 'party'
-			}
+				target: EffectTarget.Party
+			})
 		]
 	}),
 
@@ -560,12 +533,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 0,
 		description: 'Uses a healing potion to restore HP.',
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 0.4,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -579,12 +552,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 18,
 		description: 'Creates disorienting illusions.',
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Confused,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -597,12 +570,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 20,
 		description: 'Becomes invisible, making attacks miss.',
 		effects: [
-			{
-				type: 'volatile_effect',
-				value: 'immaterial',
+			new TechniqueEffect({
+				type: TechniqueEffectType.VolatileEffect,
+				value: VolatileEffectType.Immaterial,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -613,14 +586,14 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		power: 0,
 		precision: 0.7,
 		manaCost: 25,
-		description: 'Controls the opponent\'s actions.',
+		description: "Controls the opponent's actions.",
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Charmed,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -633,12 +606,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 18,
 		description: 'Creates decoy images.',
 		effects: [
-			{
-				type: 'volatile_effect',
-				value: 'mistyAura',
+			new TechniqueEffect({
+				type: TechniqueEffectType.VolatileEffect,
+				value: VolatileEffectType.MistyAura,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -675,12 +648,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'Drains life force to heal self.',
 		properties: { magicBased: true },
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 0.5,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -693,18 +666,18 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 20,
 		description: 'Intimidates opponents, reducing their stats.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'attack', stages: -1 },
 				chance: 1.0,
-				target: 'opponent'
-			},
-			{
-				type: 'stat_boost',
+				target: EffectTarget.Opponent
+			}),
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'magicAttack', stages: -1 },
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -717,12 +690,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 15,
 		description: 'Instills deep fear in the opponent.',
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Fear,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -736,12 +709,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'Dark flames that burn the soul.',
 		properties: { magicBased: true },
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Exhausted,
 				chance: 0.4,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -779,18 +752,18 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		description: 'A frenzied attack that boosts power but reduces defense.',
 		properties: { physicalBased: true, contact: true },
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'attack', stages: 1 },
 				chance: 1.0,
-				target: 'self'
-			},
-			{
-				type: 'stat_boost',
+				target: EffectTarget.Self
+			}),
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'defense', stages: -1 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -849,12 +822,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 30,
 		description: 'Raises fallen allies or controls the undead.',
 		effects: [
-			{
-				type: 'heal',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Heal,
 				value: 0.25,
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -878,12 +851,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 20,
 		description: 'Sends waves of terror to paralyze enemies.',
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Fear,
 				chance: 0.8,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -897,18 +870,18 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 12,
 		description: 'Inspires courage, boosting all stats slightly.',
 		effects: [
-			{
-				type: 'stat_boost',
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'attack', stages: 1 },
 				chance: 1.0,
-				target: 'self'
-			},
-			{
-				type: 'stat_boost',
+				target: EffectTarget.Self
+			}),
+			new TechniqueEffect({
+				type: TechniqueEffectType.StatBoost,
 				value: { stat: 'defense', stages: 1 },
 				chance: 1.0,
-				target: 'self'
-			}
+				target: EffectTarget.Self
+			})
 		]
 	}),
 
@@ -921,12 +894,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 16,
 		description: 'Binds the opponent with vines and roots.',
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Stunned,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	}),
 
@@ -950,12 +923,12 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		manaCost: 18,
 		description: 'Charms the opponent into compliance.',
 		effects: [
-			{
-				type: 'condition',
+			new TechniqueEffect({
+				type: TechniqueEffectType.Condition,
 				value: CombatCondition.Charmed,
 				chance: 1.0,
-				target: 'opponent'
-			}
+				target: EffectTarget.Opponent
+			})
 		]
 	})
 };
@@ -1029,17 +1002,15 @@ export const TECHNIQUE_LEARNS: { [key: string]: { level: number; technique: stri
 
 // Helper functions
 export const getTechniquesByAffinity = (affinity: Affinity): Technique[] => {
-	return Object.values(TECHNIQUES).filter(tech => tech.affinity === affinity);
+	return Object.values(TECHNIQUES).filter((tech) => tech.affinity === affinity);
 };
 
 export const getTechniquesByCategory = (category: TechniqueCategory): Technique[] => {
-	return Object.values(TECHNIQUES).filter(tech => tech.category === category);
+	return Object.values(TECHNIQUES).filter((tech) => tech.category === category);
 };
 
 export const getTechniqueByName = (name: string): Technique | null => {
-	const key = Object.keys(TECHNIQUES).find(
-		k => TECHNIQUES[k].name.toLowerCase() === name.toLowerCase()
-	);
+	const key = Object.keys(TECHNIQUES).find((k) => TECHNIQUES[k].name.toLowerCase() === name.toLowerCase());
 	return key ? TECHNIQUES[key] : null;
 };
 

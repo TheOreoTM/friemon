@@ -1,5 +1,5 @@
 import { Affinity, TechniqueCategory } from '../types/enums';
-import { TechniqueEffect } from '../types/interfaces';
+import { TechniqueEffect } from './TechniqueEffect';
 import { TechniqueProperty } from '../types/types';
 import { Character } from './Character';
 import { Battle } from '../battle/Battle';
@@ -24,7 +24,7 @@ export class Technique {
 		power: number;
 		precision: number;
 		manaCost: number;
-		initiative?: number;
+		initiative?: number; // Priority
 		effects?: TechniqueEffect[];
 		properties?: { [key in TechniqueProperty]?: boolean };
 		description: string;

@@ -35,13 +35,6 @@ export interface VolatileEffect {
 	magicSeal: boolean;
 }
 
-export interface TechniqueEffect {
-	type: string;
-	value: any;
-	chance: number;
-	target: string;
-	condition?: (user: Character, target: Character, battle: Battle) => boolean;
-}
 
 export interface Trait {
 	name: string;
@@ -114,7 +107,6 @@ export interface BattleState {
 	userHazards: Map<string, number>;
 	opponentHazards: Map<string, number>;
 }
-
 
 export interface CharacterData {
 	id: string;
