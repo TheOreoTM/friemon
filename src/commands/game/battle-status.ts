@@ -2,7 +2,6 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
 import { BattleManager } from '../../lib/battle/BattleManager';
-import { BattleCollector } from '../../lib/battle/BattleCollector';
 
 @ApplyOptions<Command.Options>({
 	description: 'View your current battle status'
@@ -26,7 +25,7 @@ export class BattleStatusCommand extends Command {
 				.setDescription('You are not currently in a battle.')
 				.addFields({
 					name: '⚔️ How to Battle',
-					value: 'Use `/battle @user` to challenge another player to a battle!',
+					value: 'Use `/battle @user` to challenge another player to a battle! Battles use a three-channel system with private move selection.',
 					inline: false
 				})
 				.setFooter({ text: 'Challenge someone to start battling!' });
@@ -34,9 +33,8 @@ export class BattleStatusCommand extends Command {
 			return interaction.reply({ embeds: [embed], ephemeral: true });
 		}
 
-		// Show current battle status
-		const statusEmbed = session.interface.createBattleStatusEmbed();
-		const actionButtons = session.interface.createActionButtons();
+		// Show current battle status with thread links
+		const statusEmbed = session.interface.createBattleStatusEmbed(session);
 
 		// Add additional status info
 		const isPlayer1 = interaction.user.id === session.player1Id;
@@ -56,18 +54,22 @@ export class BattleStatusCommand extends Command {
 			inline: false
 		});
 
-		const reply = await interaction.reply({
-			embeds: [statusEmbed],
-			components: session.battle.isComplete() ? [] : [actionButtons],
-			ephemeral: true
-		});
-
-		// Create collector for battle interactions if battle is active
-		if (!session.battle.isComplete()) {
-			const message = await reply.fetch();
-			BattleCollector.createCollector(message, interaction.user.id);
+		// Add channel navigation info if channels exist
+		if (session.player1ThreadId && session.player2ThreadId && session.battleLogThreadId) {
+			const playerChannelId = isPlayer1 ? session.player1ThreadId : session.player2ThreadId;
+			statusEmbed.addFields({
+				name: '🔗 Battle Channels',
+				value: [
+					`• Your moves: <#${playerChannelId}>`,
+					`• Live battle: <#${session.battleLogThreadId}>`
+				].join('\n'),
+				inline: false
+			});
 		}
 
-		return reply;
+		return interaction.reply({
+			embeds: [statusEmbed],
+			ephemeral: true
+		});
 	}
 }

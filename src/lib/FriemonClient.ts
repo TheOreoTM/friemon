@@ -1,6 +1,7 @@
 import { container, SapphireClient } from '@sapphire/framework';
 import { PrismaClient } from '@prisma/client';
 import { CLIENT_CONFIG } from '@src/config';
+import { battleSystem } from './battle/BattleSystemManager';
 
 export class FriemonClient<Ready extends boolean = boolean> extends SapphireClient<Ready> {
 	public constructor() {
@@ -9,7 +10,12 @@ export class FriemonClient<Ready extends boolean = boolean> extends SapphireClie
 	}
 
 	public override async login(token?: string): Promise<string> {
-		return super.login(token);
+		const result = await super.login(token);
+		
+		// Initialize battle system after login
+		battleSystem.initialize(this);
+		
+		return result;
 	}
 
 	public override destroy() {

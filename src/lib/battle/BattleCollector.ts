@@ -1,4 +1,4 @@
-import { ButtonInteraction, StringSelectMenuInteraction, Message, ComponentType, InteractionCollector, EmbedBuilder } from 'discord.js';
+import { ButtonInteraction, Message, ComponentType, InteractionCollector, EmbedBuilder } from 'discord.js';
 import { BattleManager } from './BattleManager';
 
 export class BattleCollector {
@@ -39,221 +39,21 @@ export class BattleCollector {
 		this.activeCollectors.set(userId, collector);
 	}
 
-	public static createSelectMenuCollector(message: Message, userId: string): void {
-		// Clean up any existing collector
-		this.stopCollector(userId);
+	// Removed: Now using persistent BattleListener instead of message-based collectors
 
-		const collector = message.createMessageComponentCollector({
-			componentType: ComponentType.StringSelect,
-			filter: (interaction) => {
-				return interaction.user.id === userId && interaction.customId.startsWith('battle_');
-			},
-			time: this.TURN_TIMEOUT
-		});
-
-		collector.on('collect', async (interaction: StringSelectMenuInteraction) => {
-			await this.handleSelectMenuInteraction(interaction, userId);
-		});
-
-		collector.on('end', async (_collected, reason) => {
-			if (reason === 'time') {
-				await this.handleTimeout(message, userId);
-			}
-			this.activeCollectors.delete(userId);
-		});
-
-		this.activeCollectors.set(userId, collector);
-	}
-
-	private static async handleButtonInteraction(interaction: ButtonInteraction, userId: string): Promise<void> {
-		const session = BattleManager.getBattle(userId);
-
-		if (!session) {
-			await interaction.reply({
-				content: '❌ No active battle found! Use `/battle ai` to start a new battle.',
-				ephemeral: true
-			});
-			return;
-		}
-
-		const action = interaction.customId.replace('battle_', '');
-
-		switch (action) {
-			case 'attack':
-				await this.handleAttackAction(interaction, session, userId);
-				break;
-			case 'switch':
-				await this.handleSwitchAction(interaction, session, userId);
-				break;
-			case 'item':
-				await this.handleItemAction(interaction);
-				break;
-			case 'flee':
-				await this.handleFleeAction(interaction, session, userId);
-				break;
-			default:
-				await interaction.reply({
-					content: '❌ Unknown battle action!',
-					ephemeral: true
-				});
-				return;
-		}
-	}
-
-	private static async handleSelectMenuInteraction(interaction: StringSelectMenuInteraction, userId: string): Promise<void> {
-		const session = BattleManager.getBattle(userId);
-
-		if (!session) {
-			await interaction.reply({
-				content: '❌ No active battle found!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		const action = interaction.customId.replace('battle_', '').replace('_select', '');
-		console.log("🚀 ~ BattleCollector ~ handleSelectMenuInteraction ~ action:", action)
-		const selectedValue = interaction.values[0];
-
-		let result;
-
-		switch (action) {
-			case 'technique':
-				result = await BattleManager.executePlayerAction(userId, 'attack', selectedValue);
-				break;
-			case 'switch':
-				result = await BattleManager.executePlayerAction(userId, 'switch', selectedValue);
-				break;
-			default:
-				await interaction.reply({
-					content: '❌ Unknown selection action!',
-					ephemeral: true
-				});
-				return;
-		}
-
-		if (!result.success) {
-			await interaction.reply({
-				content: `❌ ${result.message}`,
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Update battle display
-		const updatedSession = BattleManager.getBattle(userId);
-
-		if (!updatedSession) {
-			// Battle ended
-			const resultEmbed = session.interface.createBattleResultEmbed();
-			await interaction.update({
-				content: `✅ ${result.message}`,
-				embeds: [resultEmbed],
-				components: []
-			});
-			return;
-		}
-
-		// Battle continues - update the main battle message
-		const statusEmbed = updatedSession.interface.createBattleStatusEmbed();
-		const actionButtons = updatedSession.interface.createActionButtons();
-
-		// Add the action result to the embed
-		statusEmbed.addFields({
-			name: '⚡ Last Action',
-			value: result.message,
-			inline: false
-		});
-
-		await interaction.update({
-			embeds: [statusEmbed],
-			components: [actionButtons]
-		});
-
-		// Create new collector for next turn
-		const originalMessage = interaction.message as Message;
-		this.createCollector(originalMessage, userId);
-	}
-
-	private static async handleAttackAction(interaction: ButtonInteraction, session: any, userId: string): Promise<void> {
-		// Show technique selection menu
-		const techniqueMenu = session.interface.createTechniqueSelectMenu();
-
-		if (techniqueMenu.components.length === 0) {
-			await interaction.reply({
-				content: '❌ No techniques available!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		const reply = await interaction.reply({
-			content: '🎯 Select a technique to use:',
-			components: [techniqueMenu],
-			ephemeral: true,
-			fetchReply: true
-		});
-
-		// Create collector for the technique selection
-		this.createSelectMenuCollector(reply as Message, userId);
-	}
-
-	private static async handleSwitchAction(interaction: ButtonInteraction, session: any, userId: string): Promise<void> {
-		// Show character selection menu
-		const switchMenu = session.interface.createSwitchSelectMenu();
-
-		if (switchMenu.components.length === 0) {
-			await interaction.reply({
-				content: '❌ No characters available to switch to!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		const reply = await interaction.reply({
-			content: '🔄 Select a character to switch to:',
-			components: [switchMenu],
-			ephemeral: true,
-			fetchReply: true
-		});
-
-		// Create collector for the character selection
-		this.createSelectMenuCollector(reply as Message, userId);
-	}
-
-	private static async handleItemAction(interaction: ButtonInteraction): Promise<void> {
+	// Legacy method - battles now use thread-based interactions
+	private static async handleButtonInteraction(interaction: ButtonInteraction, _userId: string): Promise<void> {
 		await interaction.reply({
-			content: '🎒 Items system not implemented yet!',
+			content: '❌ This battle uses the new thread system. Please check your private battle thread to select moves.',
 			ephemeral: true
 		});
 	}
 
-	private static async handleFleeAction(interaction: ButtonInteraction, session: any, userId: string): Promise<void> {
-		// Execute flee action
-		const result = await BattleManager.executePlayerAction(userId, 'flee');
+	// Removed: Move selection now handled by BattleListener
 
-		if (!result.success) {
-			await interaction.reply({
-				content: `❌ ${result.message}`,
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Show battle result
-		const resultEmbed = session.interface.createBattleResultEmbed();
-
-		await interaction.update({
-			content: '🏃 You fled from battle!',
-			embeds: [resultEmbed],
-			components: []
-		});
-
-		this.stopCollector(userId);
-	}
 
 	private static async handleTimeout(message: Message, userId: string): Promise<void> {
-		const timeoutResult = BattleManager.handleTimeout(userId);
+		const timeoutResult = await BattleManager.handleTimeout(userId);
 
 		if (timeoutResult.forfeit) {
 			// User forfeited due to too many timeouts
@@ -274,8 +74,7 @@ export class BattleCollector {
 		// Update battle display with timeout message
 		const session = BattleManager.getBattle(userId);
 		if (session) {
-			const statusEmbed = session.interface.createBattleStatusEmbed();
-			const actionButtons = session.interface.createActionButtons();
+			const statusEmbed = session.interface.createBattleStatusEmbed(session);
 
 			statusEmbed.addFields({
 				name: '⏰ Timeout',
@@ -285,11 +84,8 @@ export class BattleCollector {
 
 			await message.edit({
 				embeds: [statusEmbed],
-				components: [actionButtons]
+				components: []
 			});
-
-			// Create new collector for next turn
-			this.createCollector(message, userId);
 		}
 	}
 
@@ -331,7 +127,7 @@ export class BattleCollector {
 	}
 
 	private static async handleChallengeInteraction(interaction: ButtonInteraction): Promise<void> {
-		const [action, , challengerId] = interaction.customId.split('_');
+		const [_, action, challengerId] = interaction.customId.split('_');
 		const responderId = interaction.user.id;
 
 		if (action === 'accept') {
@@ -347,22 +143,26 @@ export class BattleCollector {
 			// Start a player vs player battle
 			const session = BattleManager.createPlayerBattle(challengerId, responderId);
 
-			// Create battle display
-			const statusEmbed = session.interface.createBattleStatusEmbed();
-			const actionButtons = session.interface.createActionButtons();
+			// Create battle threads
+			const threadResult = await BattleManager.createBattleThreads(session, interaction.guild!);
+			if (!threadResult.success) {
+				await interaction.reply({
+					content: `❌ Failed to create battle threads: ${threadResult.message}`,
+					ephemeral: true
+				});
+				return;
+			}
 
-			statusEmbed.setDescription(`${interaction.user} accepted the challenge! Turn ${session.currentTurn}`);
+			// Create battle log display for main thread
+			const battleLogEmbed = session.interface.createBattleLogEmbed(session);
 
 			await interaction.update({
-				content: `⚔️ **Battle Started!** Both players can now take actions.`,
-				embeds: [statusEmbed],
-				components: [actionButtons]
+				content: `⚔️ **Battle Started!** Check your private channels to select moves.\n\n<#${session.player1ThreadId}> - Player 1 Moves\n<#${session.player2ThreadId}> - Player 2 Moves\n<#${session.battleLogThreadId}> - Live Battle Log`,
+				embeds: [battleLogEmbed],
+				components: []
 			});
 
-			// Create collector for the battle (both players can interact)
-			const message = interaction.message as Message;
-			this.createCollector(message, session.player1Id);
-
+			// Channels will be set up automatically by the event system
 		} else if (action === 'decline') {
 			// Validate that only the challenged player can decline
 			if (responderId === challengerId) {
@@ -385,6 +185,10 @@ export class BattleCollector {
 			});
 		}
 	}
+
+	// Removed: Channel setup now handled by ChannelUpdateListener via events
+
+	// Removed: Channel updating now handled by BattleListener
 
 	public static stopAllCollectors(): void {
 		for (const [_userId, collector] of this.activeCollectors) {

@@ -5,7 +5,6 @@ import { BattleState, TechniqueEffect } from '../types/interfaces';
 import { HazardType } from '../types/types';
 import { getAffinityAdvantage } from '../data/AffinityChart';
 import { randomFloat } from '../utils/helpers';
-import { getTechniqueByName } from '../data/Techniques';
 
 export class Battle {
   public state: BattleState;
@@ -726,10 +725,9 @@ export class Battle {
     const party = isUser ? this.state.userParty : this.state.opponentParty;
     const activeIndex = isUser ? this.state.userActiveIndex : this.state.opponentActiveIndex;
     
-    const attacks = character.isDefeated() ? [] : character.techniques.filter(tech => {
-      const technique = getTechniqueByName(tech);
-      return technique && character.currentMana >= technique.manaCost;
-    });
+    const attacks = character.isDefeated() ? [] : character.techniques
+      .filter(technique => character.currentMana >= technique.manaCost)
+      .map(technique => technique.name);
     
     const switches = party
       .map((char, index) => ({ char, index }))

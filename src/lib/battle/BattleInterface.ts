@@ -1,7 +1,6 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { Battle } from './Battle';
 import { Character } from '../character/Character';
-import { getTechniqueByName } from '../data/Techniques';
 
 export class BattleInterface {
 	private battle: Battle;
@@ -10,17 +9,38 @@ export class BattleInterface {
 		this.battle = battle;
 	}
 
-	public createBattleStatusEmbed(): EmbedBuilder {
+	public createBattleStatusEmbed(session?: any): EmbedBuilder {
 		const userCharacter = this.battle.state.userCharacter;
 		const opponentCharacter = this.battle.state.opponentCharacter;
 		
+		const currentTurn = session ? session.currentTurn : this.battle.state.turn;
 		const embed = new EmbedBuilder()
 			.setTitle('⚔️ Player vs Player Battle')
 			.setColor(this.battle.isComplete() ? 0xe74c3c : 0xf39c12)
-			.setDescription(this.battle.isComplete() ? '🏆 **Battle Complete!**' : `⚡ **Turn ${this.battle.state.turn} - Both players choose actions**`);
+			.setDescription(this.battle.isComplete() ? '🏆 **Battle Complete!**' : `⚡ **Turn ${currentTurn} - Both players choose actions**`);
 
 		// Battle info
-		if (!this.battle.isComplete()) {
+		if (!this.battle.isComplete() && session) {
+			const player1HasActed = session.playerActions.get(session.player1Id) || false;
+			const player2HasActed = session.playerActions.get(session.player2Id) || false;
+			
+			let statusText = '';
+			if (player1HasActed && player2HasActed) {
+				statusText = '✅ Both players have selected actions - processing turn...';
+			} else if (player1HasActed) {
+				statusText = '⏳ Player 1 ready - waiting for Player 2...';
+			} else if (player2HasActed) {
+				statusText = '⏳ Player 2 ready - waiting for Player 1...';
+			} else {
+				statusText = '⏱️ Waiting for both players to select their actions...';
+			}
+			
+			embed.addFields({
+				name: '🎯 Battle Status',
+				value: statusText,
+				inline: false
+			});
+		} else if (!this.battle.isComplete()) {
 			embed.addFields({
 				name: '🎯 Battle Status',
 				value: 'Waiting for both players to select their actions...',
@@ -94,98 +114,179 @@ export class BattleInterface {
 		return embed;
 	}
 
-	public createActionButtons(): ActionRowBuilder<ButtonBuilder> {
-		const isComplete = this.battle.isComplete();
-		
-		return new ActionRowBuilder<ButtonBuilder>()
-			.addComponents(
-				new ButtonBuilder()
-					.setCustomId('battle_attack')
-					.setLabel('⚔️ Attack')
-					.setStyle(ButtonStyle.Danger)
-					.setDisabled(isComplete),
-				new ButtonBuilder()
-					.setCustomId('battle_switch')
-					.setLabel('🔄 Switch')
-					.setStyle(ButtonStyle.Primary)
-					.setDisabled(isComplete),
-				new ButtonBuilder()
-					.setCustomId('battle_item')
-					.setLabel('🎒 Item')
-					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(true), // Items not implemented
-				new ButtonBuilder()
-					.setCustomId('battle_flee')
-					.setLabel('🏃 Forfeit')
-					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(isComplete)
-			);
-	}
-
-	public createTechniqueSelectMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
-		// Default to player 1's character if not specified
+public createMoveSelectionMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
 		const character = isPlayer1 !== false ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		const party = isPlayer1 !== false ? this.battle.state.userParty : this.battle.state.opponentParty;
+		const activeIndex = isPlayer1 !== false ? this.battle.state.userActiveIndex : this.battle.state.opponentActiveIndex;
+		
 		if (!character) {
 			return new ActionRowBuilder<StringSelectMenuBuilder>();
 		}
 
-		const options = character.techniques.filter(techName => {
-			const technique = getTechniqueByName(techName);
-			return technique && character.currentMana >= technique.manaCost;
-		}).map(techName => {
-			const technique = getTechniqueByName(techName);
-			
-			if (!technique) {
-				return {
-					label: techName,
-					value: techName,
-					description: 'Unknown technique'
-				};
-			}
+		const options: any[] = [];
 
-			return {
-				label: technique.name,
-				value: technique.name,
-				description: `${technique.affinity} | ${technique.power} power | ${technique.manaCost} MP`,
-				emoji: this.getAffinityEmoji(technique.affinity)
-			};
-		}).slice(0, 25); // Discord limit
+		// Add technique options
+		character.techniques.forEach((technique) => {
+			if (character.currentMana >= technique.manaCost) {
+				options.push({
+					label: `⚔️ ${technique.name}`,
+					value: `attack_${technique.name}`,
+					description: `${technique.affinity} | ${technique.power} power | ${technique.manaCost} MP`,
+					emoji: this.getAffinityEmoji(technique.affinity)
+				});
+			}
+		});
+
+		// Add switch options
+		party.forEach((char, index) => {
+			if (index !== activeIndex && !char.isDefeated()) {
+				options.push({
+					label: `🔄 Switch to ${char.name}`,
+					value: `switch_${char.name}`,
+					description: `Level ${char.level} | HP: ${char.currentHP}/${char.maxHP}`,
+					emoji: this.getRaceEmoji(char.races[0])
+				});
+			}
+		});
+
+		// Add forfeit option
+		options.push({
+			label: '🏃 Forfeit Battle',
+			value: 'flee',
+			description: 'Surrender and end the battle',
+			emoji: '🏃'
+		});
+
+		// Limit to Discord's max of 25 options
+		const limitedOptions = options.slice(0, 25);
 
 		const selectMenu = new StringSelectMenuBuilder()
-			.setCustomId('battle_technique_select')
-			.setPlaceholder('Choose a technique to use...')
-			.addOptions(options);
+			.setCustomId('battle_move_select')
+			.setPlaceholder('Choose your move...')
+			.addOptions(limitedOptions);
 
 		return new ActionRowBuilder<StringSelectMenuBuilder>()
 			.addComponents(selectMenu);
 	}
 
-	public createSwitchSelectMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
-		const party = isPlayer1 !== false ? this.battle.state.userParty : this.battle.state.opponentParty;
-		const currentChar = isPlayer1 !== false ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
-		const availableCharacters = party.filter(char => 
-			!char.isDefeated() && char !== currentChar
-		);
+	public createPlayerMoveEmbed(playerId: string, session: any): EmbedBuilder {
+		const isPlayer1 = playerId === session.player1Id;
+		const playerName = isPlayer1 ? 'Player 1' : 'Player 2';
+		const character = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		
+		const currentTurn = session ? session.currentTurn : this.battle.state.turn;
+		const embed = new EmbedBuilder()
+			.setTitle(`🎯 ${playerName} - Select Your Move`)
+			.setColor(0x3498db)
+			.setDescription(`Turn ${currentTurn} - Choose your action`);
 
-		if (availableCharacters.length === 0) {
-			return new ActionRowBuilder<StringSelectMenuBuilder>();
+		if (character) {
+			embed.addFields(
+				{
+					name: '👑 Active Character',
+					value: `**${character.name}** (Level ${character.level})`,
+					inline: true
+				},
+				{
+					name: '❤️ HP',
+					value: `${character.currentHP}/${character.maxHP}`,
+					inline: true
+				},
+				{
+					name: '💫 Mana',
+					value: `${character.currentMana}/${character.maxMana}`,
+					inline: true
+				}
+			);
 		}
 
-		const options = availableCharacters.map(char => ({
-			label: char.name,
-			value: char.name,
-			description: `Level ${char.level} | HP: ${char.currentHP}/${char.maxHP}`,
-			emoji: this.getRaceEmoji(char.races[0])
-		}));
+		// Show if opponent has acted
+		const opponentId = isPlayer1 ? session.player2Id : session.player1Id;
+		const opponentHasActed = session.playerActions.get(opponentId);
+		const playerHasActed = session.playerActions.get(playerId);
 
-		const selectMenu = new StringSelectMenuBuilder()
-			.setCustomId('battle_switch_select')
-			.setPlaceholder('Choose a character to switch to...')
-			.addOptions(options);
+		if (playerHasActed) {
+			embed.addFields({
+				name: '✅ Status',
+				value: 'You have selected your move. Waiting for opponent...',
+				inline: false
+			});
+		} else {
+			embed.addFields({
+				name: '⏳ Status', 
+				value: opponentHasActed ? 'Opponent is ready. Choose your move!' : 'Select your move from the menu below.',
+				inline: false
+			});
+		}
 
-		return new ActionRowBuilder<StringSelectMenuBuilder>()
-			.addComponents(selectMenu);
+		return embed;
 	}
+
+	public createBattleLogEmbed(session: any): EmbedBuilder {
+		const currentTurn = session ? session.currentTurn : this.battle.state.turn;
+		const embed = new EmbedBuilder()
+			.setTitle('⚔️ Live Battle - Turn ' + currentTurn)
+			.setColor(this.battle.isComplete() ? 0xe74c3c : 0xf39c12);
+
+		if (this.battle.isComplete()) {
+			const winner = this.battle.getWinner();
+			const winnerName = winner === 'user' ? 'Player 1' : 'Player 2';
+			embed.setDescription(`🏆 **Battle Complete!** ${winnerName} wins!`);
+		} else {
+			const player1HasActed = session.playerActions.get(session.player1Id);
+			const player2HasActed = session.playerActions.get(session.player2Id);
+			
+			if (player1HasActed && player2HasActed) {
+				embed.setDescription('⚙️ **Processing turn...** Both players have selected their moves!');
+			} else {
+				const status = [];
+				if (player1HasActed) status.push('Player 1 ✅');
+				else status.push('Player 1 ⏳');
+				if (player2HasActed) status.push('Player 2 ✅');
+				else status.push('Player 2 ⏳');
+				
+				embed.setDescription(`⏳ **Waiting for moves...** ${status.join(' | ')}`);
+			}
+		}
+
+		// Current characters
+		const userChar = this.battle.state.userCharacter;
+		const opponentChar = this.battle.state.opponentCharacter;
+
+		if (userChar && opponentChar) {
+			embed.addFields(
+				{
+					name: '👥 Player 1',
+					value: `**${userChar.name}** ${this.createHPBar(userChar)}\nHP: ${userChar.currentHP}/${userChar.maxHP}`,
+					inline: true
+				},
+				{
+					name: '🆚',
+					value: '⚔️',
+					inline: true
+				},
+				{
+					name: '👥 Player 2',
+					value: `**${opponentChar.name}** ${this.createHPBar(opponentChar)}\nHP: ${opponentChar.currentHP}/${opponentChar.maxHP}`,
+					inline: true
+				}
+			);
+		}
+
+		// Recent battle log
+		const recentLog = this.battle.getBattleLog().slice(-5);
+		if (recentLog.length > 0) {
+			embed.addFields({
+				name: '📜 Battle Log',
+				value: recentLog.join('\n'),
+				inline: false
+			});
+		}
+
+		return embed;
+	}
+
+
 
 	public createCharacterDetailEmbed(character: Character): EmbedBuilder {
 		// const hpPercentage = (character.currentHP / character.maxHP) * 100;
@@ -243,11 +344,8 @@ export class BattleInterface {
 		if (techniques.length > 0) {
 			embed.addFields({
 				name: '🎯 Available Techniques',
-				value: techniques.map(tech => {
-					const technique = getTechniqueByName(tech);
-					return technique 
-						? `• ${technique.name} (${technique.manaCost} MP)`
-						: `• ${tech}`;
+				value: techniques.map(technique => {
+					return `• ${technique.name} (${technique.manaCost} MP)`;
 				}).join('\n'),
 				inline: false
 			});

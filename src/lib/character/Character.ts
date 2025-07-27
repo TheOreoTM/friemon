@@ -2,6 +2,9 @@ import { Race, CombatCondition } from '../types/enums';
 import { Stats, StatBoosts, VolatileEffect, Trait, Equipment, Disposition } from '../types/interfaces';
 import { StatName, BoostableStat } from '../types/types';
 import { clamp, randomInt } from '../utils/helpers';
+import { Technique } from './Technique';
+import { getTechniqueByName } from '../data/Techniques';
+import { getBestTechniquesForCharacter } from '../data/TechniqueAssignment';
 
 export class Character {
 	id: string;
@@ -17,7 +20,7 @@ export class Character {
 	disposition: Disposition;
 	trait: Trait;
 	equipment: Equipment | null;
-	techniques: string[];
+	techniques: Technique[];
 	currentHP: number;
 	maxHP: number;
 	mana: number;
@@ -253,10 +256,25 @@ export class Character {
 		return Math.floor((40 * attack) / 100 + 2);
 	}
 
-	learnTechnique(technique: string): boolean {
+	learnTechnique(technique: Technique | string): boolean {
 		if (this.techniques.length >= 4) {
 			return false;
 		}
+		
+		if (typeof technique === 'string') {
+			const techniqueObj = getTechniqueByName(technique);
+			if (!techniqueObj) {
+				console.warn(`Technique "${technique}" not found`);
+				return false;
+			}
+			technique = techniqueObj;
+		}
+		
+		// Check if already knows this technique
+		if (this.techniques.some(t => t.name === technique.name)) {
+			return false;
+		}
+		
 		this.techniques.push(technique);
 		return true;
 	}
@@ -306,17 +324,40 @@ export class Character {
 		return [];
 	}
 
+	getTechniqueNames(): string[] {
+		return this.techniques.map(technique => technique.name);
+	}
+
+	getTechniqueByName(name: string): Technique | null {
+		return this.techniques.find(technique => 
+			technique.name.toLowerCase() === name.toLowerCase()
+		) || null;
+	}
+
 	static fromData(data: any): Character {
 		// Convert CharacterData to Character
-		return new Character({
+		const character = new Character({
 			id: data.id,
 			name: data.name,
 			level: data.level,
 			races: data.races,
 			baseStats: data.baseStats,
-			techniques: data.techniques || [],
+			techniques: [],
 			disposition: { name: 'Hardy', increasedStat: 'defense', decreasedStat: 'speed' }, // Default
 			trait: { name: 'None', description: 'No special trait' } // Default
 		});
+		
+		// Use the new technique assignment system
+		const bestTechniques = getBestTechniquesForCharacter(data.id, data.races, data.level);
+		character.techniques = bestTechniques;
+		
+		// Fallback: if no techniques were assigned, try the old way
+		if (character.techniques.length === 0 && data.techniques && Array.isArray(data.techniques)) {
+			for (const techName of data.techniques) {
+				character.learnTechnique(techName);
+			}
+		}
+		
+		return character;
 	}
 }
