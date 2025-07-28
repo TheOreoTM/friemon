@@ -4,7 +4,6 @@ import { StatName, BoostableStat } from '../types/types';
 import { clamp, randomInt } from '../utils/helpers';
 import { Technique } from './Technique';
 import { getTechniqueByName } from '../data/Techniques';
-import { getBestTechniquesForCharacter } from '../data/TechniqueAssignment';
 
 export class Character {
 	id: string;
@@ -374,12 +373,8 @@ export class Character {
 			trait: { name: 'None', description: 'No special trait' } // Default
 		});
 		
-		// Use the new technique assignment system
-		const bestTechniques = getBestTechniquesForCharacter(data.id, data.races, data.level);
-		character.techniques = bestTechniques;
-		
-		// Fallback: if no techniques were assigned, try the old way
-		if (character.techniques.length === 0 && data.techniques && Array.isArray(data.techniques)) {
+		// Load techniques from character data
+		if (data.techniques && Array.isArray(data.techniques)) {
 			for (const techName of data.techniques) {
 				character.learnTechnique(techName);
 			}
