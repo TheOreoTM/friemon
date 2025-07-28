@@ -157,7 +157,16 @@ export class BattleCollector {
 			const battleLogEmbed = session.interface.createBattleLogEmbed(session);
 
 			await interaction.update({
-				content: `⚔️ **Battle Started!** Check your private channels to select moves.\n\n<#${session.player1ThreadId}> - Player 1 Moves\n<#${session.player2ThreadId}> - Player 2 Moves\n<#${session.battleLogThreadId}> - Live Battle Log`,
+				content: `⚔️ **Battle Started!** 
+				
+🎯 **Private Threads Created:**
+• <#${session.player1ThreadId}> - Player 1 Moves
+• <#${session.player2ThreadId}> - Player 2 Moves
+
+🏟️ **Public Battle Thread:**
+• <#${session.battleLogThreadId}> - Live Battle Log
+
+📱 **Check your private thread to select moves!**`,
 				embeds: [battleLogEmbed],
 				components: []
 			});

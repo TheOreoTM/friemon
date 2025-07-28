@@ -361,8 +361,6 @@ export class Battle {
 	}
 
 	public processTurnEnd(): void {
-		this.logMessage(`=== Turn ${this.state.turn} Results ===`);
-
 		// Apply condition damage
 		this.applyConditionDamage();
 
@@ -387,7 +385,10 @@ export class Battle {
 		// Clear turn actions for next turn
 		this.turnActions.clear();
 
-		this.logMessage(`=== Turn ${this.state.turn} begins ===`);
+		// Start next turn if battle is not complete
+		if (!this.isComplete()) {
+			this.logMessage(`=== Turn ${this.state.turn} begins ===`);
+		}
 	}
 
 	private applyConditionDamage(): void {

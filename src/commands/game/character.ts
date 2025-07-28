@@ -65,7 +65,7 @@ export class CharacterCommand extends Command {
 		// const userId = interaction.user.id;
 		
 		// For now, show starter characters as owned
-		const ownedCharacters = Object.values(STARTER_CHARACTERS).slice(0, 3);
+		const ownedCharacters = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 3);
 		
 		const embed = new EmbedBuilder()
 			.setTitle(`${interaction.user.username}'s Character Collection`)
@@ -77,12 +77,14 @@ export class CharacterCommand extends Command {
 
 		if (ownedCharacters.length > 0) {
 			ownedCharacters.forEach((char, index) => {
-				const tier = CHARACTER_TIERS[char.id] || 'Common';
-				embed.addFields({
-					name: `${index + 1}. ${char.name}`,
-					value: `**Level:** ${char.level}\n**Races:** ${char.races.join(', ')}\n**Tier:** ${tier}`,
-					inline: true
-				});
+				if (char) {
+					const tier = CHARACTER_TIERS[char.id] || 'Common';
+					embed.addFields({
+						name: `${index + 1}. ${char.name}`,
+						value: `**Level:** ${char.level}\n**Races:** ${char.races.join(', ')}\n**Tier:** ${tier}`,
+						inline: true
+					});
+				}
 			});
 		}
 
@@ -95,8 +97,8 @@ export class CharacterCommand extends Command {
 		const characterName = interaction.options.getString('name', true);
 		
 		// Find character in starter characters
-		const character = Object.values(STARTER_CHARACTERS).find(
-			char => char.name.toLowerCase() === characterName.toLowerCase()
+		const character = Object.values(STARTER_CHARACTERS).filter(char => char !== null).find(
+			char => char && char.name.toLowerCase() === characterName.toLowerCase()
 		);
 
 		if (!character) {
@@ -149,7 +151,7 @@ export class CharacterCommand extends Command {
 
 	private async handleTeam(interaction: Command.ChatInputCommandInteraction) {
 		// TODO: Fetch user's current team from database
-		const team = Object.values(STARTER_CHARACTERS).slice(0, 3);
+		const team = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 3);
 
 		const embed = new EmbedBuilder()
 			.setTitle('Your Battle Team')
@@ -157,11 +159,13 @@ export class CharacterCommand extends Command {
 			.setDescription('Your current battle team:');
 
 		team.forEach((char, index) => {
-			embed.addFields({
-				name: `${index + 1}. ${char.name}`,
-				value: `Level ${char.level} ${char.races.join('/')}`,
-				inline: true
-			});
+			if (char) {
+				embed.addFields({
+					name: `${index + 1}. ${char.name}`,
+					value: `Level ${char.level} ${char.races.join('/')}`,
+					inline: true
+				});
+			}
 		});
 
 		embed.setFooter({ text: 'Use /character set-team to change your team' });
@@ -170,15 +174,17 @@ export class CharacterCommand extends Command {
 	}
 
 	private async handleCatalog(interaction: Command.ChatInputCommandInteraction) {
-		const characters = Object.values(STARTER_CHARACTERS);
+		const characters = Object.values(STARTER_CHARACTERS).filter(char => char !== null);
 		const totalCharacters = characters.length;
 		
 		// Group by tier
 		const tierGroups: { [tier: string]: typeof characters } = {};
 		characters.forEach(char => {
-			const tier = CHARACTER_TIERS[char.id] || 'Common';
-			if (!tierGroups[tier]) tierGroups[tier] = [];
-			tierGroups[tier].push(char);
+			if (char) {
+				const tier = CHARACTER_TIERS[char.id] || 'Common';
+				if (!tierGroups[tier]) tierGroups[tier] = [];
+				tierGroups[tier].push(char);
+			}
 		});
 
 		const embed = new EmbedBuilder()
@@ -188,8 +194,8 @@ export class CharacterCommand extends Command {
 
 		// Display by tier
 		Object.entries(tierGroups).forEach(([tier, chars]) => {
-			const charList = chars.map(char => 
-				`• ${char.name} (Lv.${char.level})`
+			const charList = chars.filter(char => char !== null).map(char => 
+				`• ${char!.name} (Lv.${char!.level})`
 			).join('\n');
 			
 			embed.addFields({
@@ -215,14 +221,14 @@ export class CharacterCommand extends Command {
 
 	public override async autocompleteRun(interaction: Command.AutocompleteInteraction) {
 		const focusedValue = interaction.options.getFocused();
-		const characters = Object.values(STARTER_CHARACTERS);
+		const characters = Object.values(STARTER_CHARACTERS).filter(char => char !== null);
 		
 		const filtered = characters
-			.filter(char => char.name.toLowerCase().includes(focusedValue.toLowerCase()))
+			.filter(char => char && char.name.toLowerCase().includes(focusedValue.toLowerCase()))
 			.slice(0, 25)
 			.map(char => ({
-				name: char.name,
-				value: char.name
+				name: char!.name,
+				value: char!.name
 			}));
 
 		return interaction.respond(filtered);

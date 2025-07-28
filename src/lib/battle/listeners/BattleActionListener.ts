@@ -34,6 +34,14 @@ export class BattleActionListener {
 		} else if (selectedValue.startsWith('switch_')) {
 			action = 'switch';
 			target = selectedValue.replace('switch_', '');
+		} else if (selectedValue.startsWith('disabled_')) {
+			// Handle disabled technique selection
+			const techniqueName = selectedValue.replace('disabled_', '');
+			await interaction.reply({
+				content: `❌ You don't have enough MP to use **${techniqueName}**! Select a different move.`,
+				ephemeral: true
+			});
+			return;
 		} else {
 			await interaction.reply({
 				content: '❌ Invalid move selection!',
