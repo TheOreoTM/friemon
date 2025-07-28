@@ -1,8 +1,7 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
-import { STARTER_CHARACTERS, CHARACTER_TIERS } from '../../lib/data/Characters';
-import { TECHNIQUES } from '../../lib/data/Techniques';
+import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 
 @ApplyOptions<Command.Options>({
 	description: 'View and manage your characters'
@@ -62,10 +61,8 @@ export class CharacterCommand extends Command {
 
 	private async handleList(interaction: Command.ChatInputCommandInteraction) {
 		// TODO: Fetch user's characters from database
-		// const userId = interaction.user.id;
-		
 		// For now, show starter characters as owned
-		const ownedCharacters = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 3);
+		const ownedCharacters = CharacterRegistry.getStarterCharacters();
 		
 		const embed = new EmbedBuilder()
 			.setTitle(`${interaction.user.username}'s Character Collection`)
@@ -77,14 +74,13 @@ export class CharacterCommand extends Command {
 
 		if (ownedCharacters.length > 0) {
 			ownedCharacters.forEach((char, index) => {
-				if (char) {
-					const tier = CHARACTER_TIERS[char.id] || 'Common';
-					embed.addFields({
-						name: `${index + 1}. ${char.name}`,
-						value: `**Level:** ${char.level}\n**Races:** ${char.races.join(', ')}\n**Tier:** ${tier}`,
-						inline: true
-					});
-				}
+				const displayInfo = char.getDisplayInfo();
+				const tier = this.getTierFromLevel(displayInfo.level);
+				embed.addFields({
+					name: `${index + 1}. ${displayInfo.emoji} ${displayInfo.name}`,
+					value: `**Level:** ${displayInfo.level}\n**Races:** ${displayInfo.races.join(', ')}\n**Tier:** ${tier}`,
+					inline: true
+				});
 			});
 		}
 
@@ -96,9 +92,9 @@ export class CharacterCommand extends Command {
 	private async handleInfo(interaction: Command.ChatInputCommandInteraction) {
 		const characterName = interaction.options.getString('name', true);
 		
-		// Find character in starter characters
-		const character = Object.values(STARTER_CHARACTERS).filter(char => char !== null).find(
-			char => char && char.name.toLowerCase() === characterName.toLowerCase()
+		// Find character in the new system
+		const character = CharacterRegistry.getAllCharacters().find(char => 
+			char.characterName.toLowerCase() === characterName.toLowerCase()
 		);
 
 		if (!character) {
@@ -108,18 +104,13 @@ export class CharacterCommand extends Command {
 			});
 		}
 
-		const tier = CHARACTER_TIERS[character.id] || 'Common';
-		const techniques = character.techniques.map(techName => {
-			const technique = Object.values(TECHNIQUES).find(t => 
-				t.name.toLowerCase() === techName.toLowerCase()
-			);
-			return technique ? technique.name : techName;
-		});
+		const displayInfo = character.getDisplayInfo();
+		const tier = this.getTierFromLevel(displayInfo.level);
 
 		const embed = new EmbedBuilder()
-			.setTitle(character.name)
-			.setColor(this.getTierColor(tier))
-			.setDescription(`**Tier:** ${tier}\n**Races:** ${character.races.join(', ')}`);
+			.setTitle(`${displayInfo.emoji} ${displayInfo.name}`)
+			.setColor(displayInfo.color)
+			.setDescription(`**Tier:** ${tier}\n**Races:** ${displayInfo.races.join(', ')}\n\n${displayInfo.description || 'A skilled fighter ready for battle.'}`);
 
 		// Stats
 		embed.addFields(
@@ -136,22 +127,31 @@ export class CharacterCommand extends Command {
 				inline: true
 			},
 			{
+				name: '🎭 Ability',
+				value: `**${displayInfo.ability}**\n${displayInfo.abilityDescription}`,
+				inline: false
+			},
+			{
 				name: '🎯 Techniques',
-				value: techniques.length > 0 
-					? techniques.map(t => `• ${t}`).join('\n')
+				value: character.techniques.length > 0 
+					? character.techniques.map(tech => `• **${tech.name}** (${tech.manaCost} MP)`).join('\n')
 					: 'No techniques learned',
 				inline: true
 			}
 		);
 
-		embed.setFooter({ text: `Level: ${character.level}` });
+		if (displayInfo.imageUrl) {
+			embed.setThumbnail(displayInfo.imageUrl);
+		}
+
+		embed.setFooter({ text: `Level: ${displayInfo.level} | Total Stats: ${displayInfo.statTotal}` });
 
 		return interaction.reply({ embeds: [embed] });
 	}
 
 	private async handleTeam(interaction: Command.ChatInputCommandInteraction) {
 		// TODO: Fetch user's current team from database
-		const team = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 3);
+		const team = CharacterRegistry.getStarterCharacters().slice(0, 3);
 
 		const embed = new EmbedBuilder()
 			.setTitle('Your Battle Team')
@@ -159,13 +159,12 @@ export class CharacterCommand extends Command {
 			.setDescription('Your current battle team:');
 
 		team.forEach((char, index) => {
-			if (char) {
-				embed.addFields({
-					name: `${index + 1}. ${char.name}`,
-					value: `Level ${char.level} ${char.races.join('/')}`,
-					inline: true
-				});
-			}
+			const displayInfo = char.getDisplayInfo();
+			embed.addFields({
+				name: `${index + 1}. ${displayInfo.emoji} ${displayInfo.name}`,
+				value: `Level ${displayInfo.level} ${displayInfo.races.join('/')}`,
+				inline: true
+			});
 		});
 
 		embed.setFooter({ text: 'Use /character set-team to change your team' });
@@ -174,17 +173,16 @@ export class CharacterCommand extends Command {
 	}
 
 	private async handleCatalog(interaction: Command.ChatInputCommandInteraction) {
-		const characters = Object.values(STARTER_CHARACTERS).filter(char => char !== null);
+		const characters = CharacterRegistry.getAllCharacters();
 		const totalCharacters = characters.length;
 		
-		// Group by tier
+		// Group by tier (based on level)
 		const tierGroups: { [tier: string]: typeof characters } = {};
 		characters.forEach(char => {
-			if (char) {
-				const tier = CHARACTER_TIERS[char.id] || 'Common';
-				if (!tierGroups[tier]) tierGroups[tier] = [];
-				tierGroups[tier].push(char);
-			}
+			const displayInfo = char.getDisplayInfo();
+			const tier = this.getTierFromLevel(displayInfo.level);
+			if (!tierGroups[tier]) tierGroups[tier] = [];
+			tierGroups[tier].push(char);
 		});
 
 		const embed = new EmbedBuilder()
@@ -193,43 +191,48 @@ export class CharacterCommand extends Command {
 			.setDescription(`All ${totalCharacters} available characters:`);
 
 		// Display by tier
-		Object.entries(tierGroups).forEach(([tier, chars]) => {
-			const charList = chars.filter(char => char !== null).map(char => 
-				`• ${char!.name} (Lv.${char!.level})`
-			).join('\n');
-			
-			embed.addFields({
-				name: `${tier} Tier (${chars.length})`,
-				value: charList,
-				inline: true
-			});
+		const tierOrder = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+		tierOrder.forEach(tier => {
+			if (tierGroups[tier] && tierGroups[tier].length > 0) {
+				const charList = tierGroups[tier].map(char => {
+					const info = char.getDisplayInfo();
+					return `${info.emoji} **${info.name}** (Lv.${info.level})`;
+				}).join('\n');
+				
+				embed.addFields({
+					name: `${tier} Tier (${tierGroups[tier].length})`,
+					value: charList,
+					inline: true
+				});
+			}
 		});
 
 		return interaction.reply({ embeds: [embed] });
 	}
 
-	private getTierColor(tier: string): number {
-		switch (tier) {
-			case 'Common': return 0x95a5a6;
-			case 'Uncommon': return 0x27ae60;
-			case 'Rare': return 0x3498db;
-			case 'Epic': return 0x9b59b6;
-			case 'Legendary': return 0xf39c12;
-			default: return 0x95a5a6;
-		}
+	private getTierFromLevel(level: number): string {
+		if (level >= 70) return 'Legendary';
+		if (level >= 50) return 'Epic';
+		if (level >= 35) return 'Rare';
+		if (level >= 20) return 'Uncommon';
+		return 'Common';
 	}
+
 
 	public override async autocompleteRun(interaction: Command.AutocompleteInteraction) {
 		const focusedValue = interaction.options.getFocused();
-		const characters = Object.values(STARTER_CHARACTERS).filter(char => char !== null);
+		const characters = CharacterRegistry.getAllCharacters();
 		
 		const filtered = characters
-			.filter(char => char && char.name.toLowerCase().includes(focusedValue.toLowerCase()))
+			.filter(char => char.characterName.toLowerCase().includes(focusedValue.toLowerCase()))
 			.slice(0, 25)
-			.map(char => ({
-				name: char!.name,
-				value: char!.name
-			}));
+			.map(char => {
+				const displayInfo = char.getDisplayInfo();
+				return {
+					name: `${displayInfo.emoji} ${char.characterName}`,
+					value: char.characterName
+				};
+			});
 
 		return interaction.respond(filtered);
 	}

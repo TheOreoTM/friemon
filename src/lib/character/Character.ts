@@ -360,26 +360,4 @@ export class Character {
 		) || null;
 	}
 
-	static fromData(data: any): Character {
-		// Convert CharacterData to Character
-		const character = new Character({
-			id: data.id,
-			name: data.name,
-			level: data.level,
-			races: data.races,
-			baseStats: data.baseStats,
-			techniques: [],
-			disposition: { name: 'Hardy', increasedStat: 'defense', decreasedStat: 'speed' }, // Default
-			trait: { name: 'None', description: 'No special trait' } // Default
-		});
-		
-		// Load techniques from character data
-		if (data.techniques && Array.isArray(data.techniques)) {
-			for (const techName of data.techniques) {
-				character.learnTechnique(techName);
-			}
-		}
-		
-		return character;
-	}
 }

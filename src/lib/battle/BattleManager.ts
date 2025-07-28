@@ -1,7 +1,7 @@
 import { Battle } from './Battle';
 import { BattleInterface } from './BattleInterface';
 import { Character } from '../character/Character';
-import { STARTER_CHARACTERS, CharacterRegistry } from '../data/Characters';
+import { CharacterRegistry } from '../characters/CharacterRegistry';
 import { battleEvents } from './BattleEventEmitter';
 
 export interface BattleSession {
@@ -41,31 +41,17 @@ export class BattleManager {
 		}
 
 		// TODO: Fetch both players' teams from database
-		// For now, use new character system with fallback to legacy
-		let player1Team: Character[];
-		let player2Team: Character[];
+		// For now, use new character system to create random teams
+		const availableCharacters = CharacterRegistry.getStarterCharacters();
 		
-		try {
-			// Try to use new character system first
-			const availableCharacters = CharacterRegistry.getStarterCharacters();
-			
-			if (availableCharacters.length >= 2) {
-				// Use new characters
-				player1Team = [availableCharacters[0].createCharacter()];
-				player2Team = [availableCharacters[1].createCharacter()];
-			} else {
-				// Fall back to legacy system
-				const legacyChars = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 6);
-				player1Team = legacyChars.slice(0, 3).map((data) => Character.fromData(data!));
-				player2Team = legacyChars.slice(3, 6).map((data) => Character.fromData(data!));
-			}
-		} catch (error) {
-			console.warn('Error using new character system, falling back to legacy:', error);
-			// Fallback to legacy system
-			const legacyChars = Object.values(STARTER_CHARACTERS).filter(char => char !== null).slice(0, 6);
-			player1Team = legacyChars.slice(0, 3).map((data) => Character.fromData(data!));
-			player2Team = legacyChars.slice(3, 6).map((data) => Character.fromData(data!));
+		if (availableCharacters.length < 2) {
+			throw new Error('Not enough characters available for battle. Need at least 2 starter characters.');
 		}
+		
+		// Create teams using random starter characters
+		const shuffledChars = [...availableCharacters].sort(() => Math.random() - 0.5);
+		const player1Team: Character[] = [shuffledChars[0].createCharacter()];
+		const player2Team: Character[] = [shuffledChars[1].createCharacter()];
 
 		try {
 			const battle = new Battle(player1Team, player2Team);
