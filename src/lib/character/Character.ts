@@ -1,7 +1,7 @@
 import { Race, CombatCondition } from '../types/enums';
 import { Stats, StatBoosts, VolatileEffect, Trait, Equipment, Disposition } from '../types/interfaces';
 import { StatName, BoostableStat } from '../types/types';
-import { clamp, randomInt } from '../utils/helpers';
+import { clamp, randomInt } from '../util/utils';
 import { Technique } from './Technique';
 import { getTechniqueByName } from '../data/Techniques';
 
@@ -15,6 +15,8 @@ export class Character {
 	races: Race[];
 	baseStats: Stats;
 	ivs: Stats;
+	totalIV: number;
+	ivPercent: number;
 	growthPoints: Stats;
 	disposition: Disposition;
 	trait: Trait;
@@ -40,6 +42,8 @@ export class Character {
 		this.races = data.races || [];
 		this.baseStats = data.baseStats || { hp: 50, attack: 50, defense: 50, magicAttack: 50, magicDefense: 50, speed: 50 };
 		this.ivs = data.ivs || this.generateRandomIVs();
+		this.totalIV = data.totalIV ?? this.calculateTotalIV();
+		this.ivPercent = data.ivPercent ?? this.calculateIVPercent();
 		this.growthPoints = data.growthPoints || { hp: 0, attack: 0, defense: 0, magicAttack: 0, magicDefense: 0, speed: 0 };
 		this.disposition = data.disposition!;
 		this.trait = data.trait!;
@@ -80,6 +84,16 @@ export class Character {
 			magicDefense: randomInt(0, 31),
 			speed: randomInt(0, 31)
 		};
+	}
+
+	private calculateTotalIV(): number {
+		return this.ivs.hp + this.ivs.attack + this.ivs.defense + this.ivs.magicAttack + this.ivs.magicDefense + this.ivs.speed;
+	}
+
+	private calculateIVPercent(): number {
+		const total = this.calculateTotalIV();
+		const maxPossible = 31 * 6; // 186 max total IVs
+		return Math.round((total / maxPossible) * 100 * 100) / 100; // Round to 2 decimal places
 	}
 
 	private createEmptyVolatileEffects(): VolatileEffect {
@@ -229,7 +243,7 @@ export class Character {
 
 	updateCondition(): void {
 		const conditionsToRemove: CombatCondition[] = [];
-		
+
 		for (const [condition, turns] of this.conditionDurations) {
 			const newTurns = turns - 1;
 			if (newTurns <= 0) {
@@ -238,7 +252,7 @@ export class Character {
 				this.conditionDurations.set(condition, newTurns);
 			}
 		}
-		
+
 		for (const condition of conditionsToRemove) {
 			this.removeCondition(condition);
 		}
@@ -246,7 +260,7 @@ export class Character {
 
 	addCondition(condition: CombatCondition, duration: number = 3): void {
 		if (condition === CombatCondition.Normal) return;
-		
+
 		this.conditions.add(condition);
 		this.conditionDurations.set(condition, duration);
 	}
@@ -265,7 +279,7 @@ export class Character {
 	}
 
 	getConditionNames(): string[] {
-		return Array.from(this.conditions).map(condition => condition.toString());
+		return Array.from(this.conditions).map((condition) => condition.toString());
 	}
 
 	modifyStatBoost(stat: BoostableStat, stages: number): void {
@@ -289,7 +303,7 @@ export class Character {
 		if (this.techniques.length >= 4) {
 			return false;
 		}
-		
+
 		if (typeof technique === 'string') {
 			const techniqueObj = getTechniqueByName(technique);
 			if (!techniqueObj) {
@@ -298,12 +312,12 @@ export class Character {
 			}
 			technique = techniqueObj;
 		}
-		
+
 		// Check if already knows this technique
-		if (this.techniques.some(t => t.name === technique.name)) {
+		if (this.techniques.some((t) => t.name === technique.name)) {
 			return false;
 		}
-		
+
 		this.techniques.push(technique);
 		return true;
 	}
@@ -351,13 +365,26 @@ export class Character {
 	}
 
 	getTechniqueNames(): string[] {
-		return this.techniques.map(technique => technique.name);
+		return this.techniques.map((technique) => technique.name);
 	}
 
 	getTechniqueByName(name: string): Technique | null {
-		return this.techniques.find(technique => 
-			technique.name.toLowerCase() === name.toLowerCase()
-		) || null;
+		return this.techniques.find((technique) => technique.name.toLowerCase() === name.toLowerCase()) || null;
 	}
 
+	getTotalIV(): number {
+		return this.totalIV;
+	}
+
+	getIVPercent(): number {
+		return this.ivPercent;
+	}
+
+	getIVInfo(): { total: number; percent: number; individual: Stats } {
+		return {
+			total: this.totalIV,
+			percent: this.ivPercent,
+			individual: { ...this.ivs }
+		};
+	}
 }

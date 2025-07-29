@@ -5,7 +5,7 @@ import { BattleState } from '../types/interfaces';
 import { TechniqueEffect } from '../character/TechniqueEffect';
 import { HazardType } from '../types/types';
 import { getAffinityAdvantage } from '../data/AffinityChart';
-import { randomFloat } from '../utils/helpers';
+import { randomFloat } from '../util/utils';
 
 export class Battle {
 	public state: BattleState;

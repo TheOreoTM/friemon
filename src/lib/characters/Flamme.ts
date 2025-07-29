@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -11,7 +12,13 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
-import mediaLinks from '../formatting/mediaLinks';
+
+// Flamme-specific interface that extends Character with additional metadata
+interface FlammeCharacter extends Character {
+    theoryCount: number;
+    pinnacleUnlocked: boolean;
+    ignoreManaSuppressed: boolean;
+}
 
 const THEORY_RESEARCH = new Technique({
     name: 'Theory Research',
@@ -29,15 +36,15 @@ const THEORY_RESEARCH = new Technique({
 });
 
 const flammeStats = {
-    hp: 90,
-    attack: 55,
-    defense: 75,
-    magicAttack: 140,
-    magicDefense: 100,
-    speed: 70
-};
+    hp: 75,
+    attack: 50,
+    defense: 65,
+    magicAttack: 115,
+    magicDefense: 85,
+    speed: 65
+}; // Total: 430
 
-const flammeAbility = {
+const flammeAbility: Ability = {
     abilityName: "Founder of Humanity's Magic",
     abilityEffectString: `The Foundation of Humanity's Magic develops for each Theory technique used. After using 4 Theory techniques, unlock a devastating ultimate attack.`,
     
@@ -52,19 +59,20 @@ const flammeAbility = {
         }
     ],
 
-    abilityAfterOwnTechniqueUse: (character: any, battle: any, technique: any) => {
+    abilityAfterOwnTechniqueUse: (character: Character, battle: any, technique: Technique) => {
+        const flammeChar = character as FlammeCharacter;
         if (technique.properties?.theory) {
-            character.theoryCount = (character.theoryCount || 0) + 1;
-            battle.logMessage(`${character.name} advances magical theory (${character.theoryCount}/4)`);
+            flammeChar.theoryCount = (flammeChar.theoryCount || 0) + 1;
+            battle.logMessage(`${character.name} advances magical theory (${flammeChar.theoryCount}/4)`);
             
-            if (character.theoryCount >= 4) {
-                character.pinnacleUnlocked = true;
+            if (flammeChar.theoryCount >= 4) {
+                flammeChar.pinnacleUnlocked = true;
                 battle.logMessage(`${character.name} has discovered the Pinnacle of Humanity's Magic!`);
             }
         }
     },
 
-    damageOutputMultiplier: (_user: any, _target: any, technique: any) => {
+    damageOutputMultiplier: (_user: Character, _target: Character, technique: Technique) => {
         if (technique.properties?.magicBased) {
             return 1.25; // 25% bonus to all magic
         }
@@ -77,10 +85,9 @@ const Flamme = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.FLAMME,
         color: 0xde8a54,
-        imageUrl: mediaLinks.flammeCard,
         description: 'The legendary mage who founded modern human magic. Frieren\'s master and creator of countless magical techniques.'
     },
-    level: 85,
+    level: 70,
     races: [Race.Human],
     baseStats: flammeStats,
     techniques: [

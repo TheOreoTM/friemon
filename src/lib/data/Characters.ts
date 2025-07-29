@@ -30,12 +30,37 @@ export enum CharacterTier {
     Legendary = 'Legendary'
 }
 
-export function getCharacterTier(level: number): CharacterTier {
-    if (level >= 70) return CharacterTier.Legendary;
-    if (level >= 50) return CharacterTier.Epic;
-    if (level >= 35) return CharacterTier.Rare;
-    if (level >= 20) return CharacterTier.Uncommon;
-    return CharacterTier.Common;
+export function getCharacterTier(characterName: string): CharacterTier {
+    // Tiers now based on ability complexity and skill requirements, not power level
+    const tierMap: { [key: string]: CharacterTier } = {
+        // LEGENDARY - Master-level complexity, multiple interacting systems
+        'Serie': CharacterTier.Legendary,     // Toying mechanics + complex timing
+        'Flamme': CharacterTier.Legendary,    // Multiple Fire forms + mana management
+        
+        // EPIC - Advanced mechanics, high skill ceiling  
+        'Frieren': CharacterTier.Epic,        // Analysis stacking system
+        'Aura': CharacterTier.Epic,           // Army strength management
+        'Denken': CharacterTier.Epic,         // Mental magic complexity
+        'Sense': CharacterTier.Epic,          // Defensive counter-mechanics
+        
+        // RARE - Complex interactions, multiple stacking effects
+        'Linie': CharacterTier.Rare,          // Chain stacking mechanics
+        'Wirbel': CharacterTier.Rare,         // Lightning combo system
+        'Ubel': CharacterTier.Rare,           // Empathy-based mechanics
+        
+        // UNCOMMON - Moderate complexity, 1-2 mechanics to track
+        'Himmel': CharacterTier.Uncommon,     // Buff-based damage scaling
+        'Laufen': CharacterTier.Uncommon,     // Speed-based evasion
+        'Edel': CharacterTier.Uncommon,       // Balance and defensive stance
+        
+        // COMMON - Simple, straightforward abilities, good for beginners
+        'Stark': CharacterTier.Common,        // Simple courage/coward mechanics
+        'Fern': CharacterTier.Common,         // Fast magic casting
+        'Sein': CharacterTier.Common,         // Healing and divine protection
+        'Stille': CharacterTier.Common        // Pure speed-based gameplay
+    };
+    
+    return tierMap[characterName] || CharacterTier.Common;
 }
 
 export function getTierColor(tier: CharacterTier): number {

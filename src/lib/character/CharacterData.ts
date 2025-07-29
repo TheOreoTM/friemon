@@ -10,7 +10,6 @@ import { CharacterEmoji } from '../metadata/CharacterEmoji';
 export interface CharacterCosmetic {
     emoji: CharacterEmoji;
     color: number;
-    imageUrl?: string;
     description?: string;
 }
 
@@ -122,15 +121,28 @@ export class CharacterData {
      */
     public createCharacter(): Character {
         const character = new Character({
+            id: `${this.characterName}-${Date.now()}`,
             name: this.characterName,
+            ownerId: '',
             level: this.level,
+            currentXP: 0,
             races: [...this.races],
             maxHP: this.baseStats.hp,
             currentHP: this.baseStats.hp,
             maxMana: Math.floor(this.baseStats.hp * 0.6),
             currentMana: Math.floor(this.baseStats.hp * 0.6),
+            mana: Math.floor(this.baseStats.hp * 0.6),
             baseStats: { ...this.baseStats },
-            techniques: [...this.techniques]
+            techniques: [...this.techniques],
+            disposition: {
+                name: 'Balanced',
+                increasedStat: 'hp',
+                decreasedStat: 'hp'
+            },
+            trait: {
+                name: this.ability.abilityName,
+                description: this.ability.abilityEffectString
+            }
         });
         
         // Set trait-like ability system (convert ability to trait)
@@ -164,7 +176,6 @@ export class CharacterData {
             name: this.characterName,
             emoji: this.cosmetic.emoji,
             color: this.cosmetic.color,
-            imageUrl: this.cosmetic.imageUrl,
             description: this.cosmetic.description,
             level: this.level,
             races: this.races,

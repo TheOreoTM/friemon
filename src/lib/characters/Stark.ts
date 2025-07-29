@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race, CombatCondition } from '../types/enums';
@@ -10,7 +11,12 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
-import mediaLinks from '../formatting/mediaLinks';
+
+// Stark-specific interface that extends Character with additional metadata
+interface StarkCharacter extends Character {
+    resolve: number;
+    dragonSlayerTraining: boolean;
+}
 
 // Stark's unique techniques
 const RESOLVE_STRIKE = new Technique({
@@ -45,15 +51,15 @@ const COWARD_FLEE = new Technique({
 });
 
 const starkStats = {
-    hp: 125,
-    attack: 115,
-    defense: 85,
-    magicAttack: 45,
-    magicDefense: 60,
-    speed: 75
-};
+    hp: 100,
+    attack: 95,
+    defense: 70,
+    magicAttack: 35,
+    magicDefense: 50,
+    speed: 65
+}; // Total: 415
 
-const starkAbility = {
+const starkAbility: Ability = {
     abilityName: "Bravest Coward",
     abilityEffectString: `Using attacks while resolve is negative reduces damage by 20%. Using attacks while resolve is positive increases damage by 20%. Attacks do normal damage when resolve is 0.`,
     
@@ -68,17 +74,19 @@ const starkAbility = {
         }
     ],
 
-    abilityAfterOwnTechniqueUse: (character: any, _battle: any, technique: any) => {
+    abilityAfterOwnTechniqueUse: (character: Character, _battle: any, technique: Technique) => {
+        const starkChar = character as StarkCharacter;
         // Some techniques modify resolve
         if (technique.name === 'Resolve Strike') {
-            character.resolve = (character.resolve || 0) + 1;
+            starkChar.resolve = (starkChar.resolve || 0) + 1;
         } else if (technique.name === 'Tactical Retreat') {
-            character.resolve = (character.resolve || 0) - 1;
+            starkChar.resolve = (starkChar.resolve || 0) - 1;
         }
     },
 
-    damageOutputMultiplier: (user: any, _target: any, _technique: any) => {
-        const resolve = user.resolve || 0;
+    damageOutputMultiplier: (user: Character, _target: Character, _technique: Technique) => {
+        const starkChar = user as StarkCharacter;
+        const resolve = starkChar.resolve || 0;
         if (resolve > 0) {
             return 1.2; // 20% bonus when brave
         } else if (resolve < 0) {
@@ -87,7 +95,7 @@ const starkAbility = {
         return 1.0; // Normal damage when neutral
     },
 
-    preventCondition: (_character: any, condition: CombatCondition) => {
+    preventCondition: (_character: Character, condition: CombatCondition) => {
         // Training provides some resistance to physical debuffs
         if (condition === CombatCondition.Exhausted || condition === CombatCondition.Stunned) {
             return Math.random() < 0.3; // 30% chance to resist
@@ -101,7 +109,6 @@ const Stark = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.STARK,
         color: 0xb30c0c,
-        imageUrl: mediaLinks.starkCard,
         description: 'A warrior trained by the legendary dwarf Eisen. Despite his cowardly nature, he possesses incredible strength and potential.'
     },
     level: 35,

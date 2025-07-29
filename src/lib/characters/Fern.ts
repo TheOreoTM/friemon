@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race, CombatCondition } from '../types/enums';
@@ -11,7 +12,6 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
-import mediaLinks from '../formatting/mediaLinks';
 
 // Fern's unique techniques
 const QUICK_ZOLTRAAK = new Technique({
@@ -43,15 +43,15 @@ const MANA_CONTROL = new Technique({
 });
 
 const fernStats = {
-    hp: 75,
-    attack: 55,
-    defense: 60,
-    magicAttack: 105,
-    magicDefense: 85,
-    speed: 90
-};
+    hp: 70,
+    attack: 50,
+    defense: 55,
+    magicAttack: 90,
+    magicDefense: 70,
+    speed: 80
+}; // Total: 415
 
-const fernAbility = {
+const fernAbility: Ability = {
     abilityName: "Prodigious Talent",
     abilityEffectString: `Natural magical talent allows for rapid improvement and efficient spellcasting. Restore mana equal to 8% of max mana each turn. Fast magical techniques deal 20% more damage.`,
     
@@ -66,7 +66,7 @@ const fernAbility = {
         }
     ],
 
-    abilityEndOfTurnEffect: (character: any, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: any) => {
         // Restore mana each turn
         const manaRestore = Math.floor(character.maxMana * 0.08);
         character.restoreMana(manaRestore);
@@ -75,7 +75,7 @@ const fernAbility = {
         }
     },
 
-    damageOutputMultiplier: (_user: any, _target: any, technique: any) => {
+    damageOutputMultiplier: (_user: Character, _target: Character, technique: Technique) => {
         // Bonus for fast magical techniques
         if (technique.properties?.magicBased && technique.initiative >= 0) {
             return 1.2; // 20% bonus for fast magical techniques
@@ -83,7 +83,7 @@ const fernAbility = {
         return 1.0;
     },
 
-    preventCondition: (_character: any, condition: CombatCondition) => {
+    preventCondition: (_character: Character, condition: CombatCondition) => {
         // Training provides resistance to magic seal
         if (condition === CombatCondition.MagicSeal) {
             return Math.random() < 0.4; // 40% chance to resist magic seal
@@ -97,7 +97,6 @@ const Fern = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.FERN,
         color: 0x9b59b6,
-        imageUrl: mediaLinks.fernCard,
         description: "Frieren's human apprentice. A prodigious young mage with exceptional talent and rapid spellcasting abilities."
     },
     level: 35,

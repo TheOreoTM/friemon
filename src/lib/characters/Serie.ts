@@ -1,7 +1,17 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
+import { Technique } from '../character/Technique';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
+
+// Serie-specific character interface with additional metadata
+interface SerieCharacter extends Character {
+    manaSuppressed: boolean;
+    ignoreManaSuppressed: boolean;
+    toyingNextTurn: boolean;
+    toyingTurn: boolean;
+}
 import { 
     VOLLZANBEL, 
     JUDRADJIM, 
@@ -9,18 +19,17 @@ import {
     MANA_SHIELD,
     DETECT_MAGIC
 } from '../techniques/SharedTechniques';
-import mediaLinks from '../formatting/mediaLinks';
 
 const serieStats = {
-    hp: 95,
-    attack: 60,
-    defense: 80,
-    magicAttack: 150,
-    magicDefense: 110,
-    speed: 75
-};
+    hp: 80,
+    attack: 55,
+    defense: 70,
+    magicAttack: 125,
+    magicDefense: 85,
+    speed: 70
+}; // Total: 435
 
-const serieAbility = {
+const serieAbility: Ability = {
     abilityName: "Toying Around",
     abilityEffectString: `Any attack used by this character has its damage increased by 30%. The turn after attacking, damage is reduced by 30% as Serie becomes aloof.`,
     
@@ -35,27 +44,30 @@ const serieAbility = {
         }
     ],
 
-    abilityStartOfTurnEffect: (character: any, battle: any) => {
-        if (character.toyingNextTurn) {
+    abilityStartOfTurnEffect: (character: Character, battle: any) => {
+        const serieChar = character as SerieCharacter;
+        if (serieChar.toyingNextTurn) {
             battle.logMessage(`${character.name} acts aloof.`);
-            character.toyingTurn = true;
-            character.toyingNextTurn = false;
+            serieChar.toyingTurn = true;
+            serieChar.toyingNextTurn = false;
         } else {
-            character.toyingTurn = false;
+            serieChar.toyingTurn = false;
         }
     },
 
-    damageOutputMultiplier: (user: any, _target: any, _technique: any) => {
-        if (user.toyingTurn) {
+    damageOutputMultiplier: (user: Character, _target: Character, _technique: Technique) => {
+        const serieChar = user as SerieCharacter;
+        if (serieChar.toyingTurn) {
             return 0.7; // 30% reduction when toying
         } else {
             return 1.3; // 30% bonus normally
         }
     },
 
-    abilityAfterOwnTechniqueUse: (character: any, _battle: any, technique: any) => {
-        if (technique.power > 0 && !character.toyingTurn) {
-            character.toyingNextTurn = true;
+    abilityAfterOwnTechniqueUse: (character: Character, _battle: any, technique: Technique) => {
+        const serieChar = character as SerieCharacter;
+        if (technique.power > 0 && !serieChar.toyingTurn) {
+            serieChar.toyingNextTurn = true;
         }
     }
 };
@@ -65,10 +77,9 @@ const Serie = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.SERIE,
         color: 0xe8b961,
-        imageUrl: mediaLinks.serieCard,
         description: 'The Great Mage Serie, founder of the Continental Magic Association. An ancient elf with immense magical power who often toys with opponents.'
     },
-    level: 90,
+    level: 70,
     races: [Race.Elf],
     baseStats: serieStats,
     techniques: [

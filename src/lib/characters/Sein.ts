@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -8,27 +9,27 @@ import {
     HOLY_STRIKE,
     DEFENSIVE_MAGIC
 } from '../techniques/SharedTechniques';
-import mediaLinks from '../formatting/mediaLinks';
 
 const seinStats = {
-    hp: 90,
-    attack: 75,
-    defense: 80,
-    magicAttack: 95,
-    magicDefense: 100,
-    speed: 70
-};
+    hp: 80,
+    attack: 60,
+    defense: 65,
+    magicAttack: 75,
+    magicDefense: 85,
+    speed: 60
+}; // Total: 425
 
-const seinAbility = {
+const seinAbility: Ability = {
     abilityName: "Goddess' Blessing",
     abilityEffectString: `Heal for 2HP + 2 * (Turn Count * 10%) at the end of every turn. This character can be healed past their max HP.`,
     
-    abilityEndOfTurnEffect: (character: any, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: any) => {
         const baseHealing = 2;
         const turnBonus = 2 * (battle.state.turn * 0.1);
         const totalHealing = Math.floor(baseHealing + turnBonus);
         
-        character.currentHp += totalHealing;
+        // Using currentHP property from Character class
+        character.currentHP = character.currentHP + totalHealing;
         battle.logMessage(`${character.name} receives the Goddess' Blessing and heals ${totalHealing} HP!`);
     }
 };
@@ -38,10 +39,9 @@ const Sein = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.SEIN,
         color: 0xa3caca,
-        imageUrl: mediaLinks.seinCard,
         description: 'A priest blessed by the goddess with powerful healing magic. Can recover from any injury with divine grace.'
     },
-    level: 40,
+    level: 25,
     races: [Race.Human],
     baseStats: seinStats,
     techniques: [

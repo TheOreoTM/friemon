@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -8,32 +9,37 @@ import {
     DEFENSIVE_MAGIC,
     MANA_SHIELD
 } from '../techniques/SharedTechniques';
-import mediaLinks from '../formatting/mediaLinks';
+
+// Denken-specific interface that extends Character with additional metadata
+interface DenkenCharacter extends Character {
+    perseveranceStacks: number;
+}
 
 const denkenStats = {
-    hp: 110,
-    attack: 70,
-    defense: 85,
-    magicAttack: 115,
-    magicDefense: 95,
-    speed: 65
-};
+    hp: 90,
+    attack: 60,
+    defense: 70,
+    magicAttack: 95,
+    magicDefense: 80,
+    speed: 55
+}; // Total: 450
 
-const denkenAbility = {
+const denkenAbility: Ability = {
     abilityName: "Perseverance",
     abilityEffectString: `Start with 3 Perseverance stacks. When HP reaches 0 or below, lose 1 stack and continue fighting. Lose when stacks reach 0 or HP drops below -40.`,
     
-    abilityEndOfTurnEffect: (character: any, battle: any) => {
-        if (character.currentHp <= 0) {
-            const stacks = character.perseveranceStacks || 3;
+    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+        const denkenChar = character as DenkenCharacter;
+        if (character.currentHP <= 0) {
+            const stacks = denkenChar.perseveranceStacks || 3;
             if (stacks > 0) {
-                character.perseveranceStacks = stacks - 1;
-                if (character.currentHp <= -20) {
-                    character.perseveranceStacks = Math.max(0, character.perseveranceStacks - 1);
+                denkenChar.perseveranceStacks = stacks - 1;
+                if (character.currentHP <= -20) {
+                    denkenChar.perseveranceStacks = Math.max(0, denkenChar.perseveranceStacks - 1);
                 }
                 
-                if (character.perseveranceStacks > 0) {
-                    battle.logMessage(`${character.name} steels himself! (${character.perseveranceStacks} stacks remaining)`);
+                if (denkenChar.perseveranceStacks > 0) {
+                    battle.logMessage(`${character.name} steels himself! (${denkenChar.perseveranceStacks} stacks remaining)`);
                 } else {
                     battle.logMessage(`${character.name}'s strength finally fades.`);
                 }
@@ -47,10 +53,9 @@ const Denken = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.DENKEN,
         color: 0x82574f,
-        imageUrl: mediaLinks.denkenCard,
         description: 'An experienced mage with incredible perseverance. Can continue fighting even when others would fall.'
     },
-    level: 55,
+    level: 45,
     races: [Race.Human],
     baseStats: denkenStats,
     techniques: [

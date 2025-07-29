@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -9,7 +10,6 @@ import {
 } from '../techniques/SharedTechniques';
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory } from '../types/enums';
-import mediaLinks from '../formatting/mediaLinks';
 
 const REIGRAM = new Technique({
     name: 'Reigram',
@@ -25,19 +25,19 @@ const REIGRAM = new Technique({
 });
 
 const ubelStats = {
-    hp: 80,
-    attack: 70,
-    defense: 65,
-    magicAttack: 110,
-    magicDefense: 75,
-    speed: 95
-};
+    hp: 70,
+    attack: 60,
+    defense: 55,
+    magicAttack: 90,
+    magicDefense: 60,
+    speed: 80
+}; // Total: 415
 
-const ubelAbility = {
+const ubelAbility: Ability = {
     abilityName: "Reckless Empathy",
     abilityEffectString: `Übel's slashing attacks ignore 100% of opponent's defense, but can be blocked by defensive techniques. Attack accuracy varies based on emotional understanding.`,
     
-    damageOutputMultiplier: (_user: any, _target: any, technique: any) => {
+    damageOutputMultiplier: (_user: Character, _target: Character, technique: Technique) => {
         if (technique.properties?.slashing) {
             return 1.3; // 30% bonus for slashing attacks
         }
@@ -50,7 +50,6 @@ const Ubel = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.UBEL,
         color: 0x3c5502,
-        imageUrl: mediaLinks.ubelCard,
         description: 'A dangerous mage who learns magic through empathy and emotion. Her cutting magic can slice through anything she understands.'
     },
     level: 45,

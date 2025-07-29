@@ -2,6 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
 import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
+import { getCharacterTier } from '../../lib/data/Characters';
 
 @ApplyOptions<Command.Options>({
 	description: 'View and manage your characters'
@@ -75,7 +76,7 @@ export class CharacterCommand extends Command {
 		if (ownedCharacters.length > 0) {
 			ownedCharacters.forEach((char, index) => {
 				const displayInfo = char.getDisplayInfo();
-				const tier = this.getTierFromLevel(displayInfo.level);
+				const tier = getCharacterTier(displayInfo.name);
 				embed.addFields({
 					name: `${index + 1}. ${displayInfo.emoji} ${displayInfo.name}`,
 					value: `**Level:** ${displayInfo.level}\n**Races:** ${displayInfo.races.join(', ')}\n**Tier:** ${tier}`,
@@ -105,7 +106,7 @@ export class CharacterCommand extends Command {
 		}
 
 		const displayInfo = character.getDisplayInfo();
-		const tier = this.getTierFromLevel(displayInfo.level);
+		const tier = getCharacterTier(displayInfo.name);
 
 		const embed = new EmbedBuilder()
 			.setTitle(`${displayInfo.emoji} ${displayInfo.name}`)
@@ -140,9 +141,6 @@ export class CharacterCommand extends Command {
 			}
 		);
 
-		if (displayInfo.imageUrl) {
-			embed.setThumbnail(displayInfo.imageUrl);
-		}
 
 		embed.setFooter({ text: `Level: ${displayInfo.level} | Total Stats: ${displayInfo.statTotal}` });
 
@@ -180,7 +178,7 @@ export class CharacterCommand extends Command {
 		const tierGroups: { [tier: string]: typeof characters } = {};
 		characters.forEach(char => {
 			const displayInfo = char.getDisplayInfo();
-			const tier = this.getTierFromLevel(displayInfo.level);
+			const tier = getCharacterTier(displayInfo.name);
 			if (!tierGroups[tier]) tierGroups[tier] = [];
 			tierGroups[tier].push(char);
 		});
@@ -210,13 +208,6 @@ export class CharacterCommand extends Command {
 		return interaction.reply({ embeds: [embed] });
 	}
 
-	private getTierFromLevel(level: number): string {
-		if (level >= 70) return 'Legendary';
-		if (level >= 50) return 'Epic';
-		if (level >= 35) return 'Rare';
-		if (level >= 20) return 'Uncommon';
-		return 'Common';
-	}
 
 
 	public override async autocompleteRun(interaction: Command.AutocompleteInteraction) {

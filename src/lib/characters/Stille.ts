@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -7,7 +8,6 @@ import {
 } from '../techniques/SharedTechniques';
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory } from '../types/enums';
-import mediaLinks from '../formatting/mediaLinks';
 
 const ESCAPE = new Technique({
     name: 'High-Speed Escape',
@@ -23,19 +23,19 @@ const ESCAPE = new Technique({
 });
 
 const stilleStats = {
-    hp: 45,
-    attack: 35,
-    defense: 30,
-    magicAttack: 40,
-    magicDefense: 35,
-    speed: 150
-};
+    hp: 60,
+    attack: 55,
+    defense: 45,
+    magicAttack: 50,
+    magicDefense: 50,
+    speed: 125
+}; // Total: 385 (Glass cannon speedster)
 
-const stilleAbility = {
+const stilleAbility: Ability = {
     abilityName: "High-speed Escape",
     abilityEffectString: `When opponent attacks, roll D100. If result is less than speed difference, ignore the attack and counter with 80% of opponent's attack damage.`,
     
-    abilityOnDamageReceived: (character: any, battle: any, damage: number) => {
+    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
         // High speed evasion - simplified without attacker access
         const speedStat = character.getEffectiveStats().speed;
         const roll = Math.floor(Math.random() * 100) + 1;
@@ -57,7 +57,6 @@ const Stille = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.STILLE,
         color: 0xe74c3c,
-        imageUrl: mediaLinks.stilleCard,
         description: 'An extremely fast scout who specializes in high-speed evasion and counter-attacks.'
     },
     level: 30,

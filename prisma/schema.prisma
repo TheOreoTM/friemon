@@ -51,6 +51,8 @@ model UserCharacter {
   
   // Individual Values (for stat variation between same characters)
   ivs           Json    // HP, Attack, Defense, MagicAttack, MagicDefense, Speed IVs
+  totalIV       Int     @default(0) // Sum of all IVs
+  ivPercent     Float   @default(0.0) // IV percentage (totalIV / 186 * 100)
   
   // Character customization (future expansion)
   customization Json    @default("{}") // Cosmetic customizations, alternate forms, etc.

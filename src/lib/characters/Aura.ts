@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race, CombatCondition } from '../types/enums';
@@ -11,7 +12,13 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect, createConditionEffect } from '../character/TechniqueEffect';
-import mediaLinks from '../formatting/mediaLinks';
+
+// Aura-specific interface that extends Character with additional metadata
+interface AuraCharacter extends Character {
+    armyStrength: number;
+    demonLordAuthority: boolean;
+    undeadCommander: boolean;
+}
 
 // Aura's unique techniques
 const UNDEAD_ARMY = new Technique({
@@ -45,15 +52,15 @@ const SCALES_OF_OBEDIENCE = new Technique({
 });
 
 const auraStats = {
-    hp: 75,
-    attack: 60,
-    defense: 70,
-    magicAttack: 130,
-    magicDefense: 90,
-    speed: 85
-};
+    hp: 70,
+    attack: 55,
+    defense: 65,
+    magicAttack: 105,
+    magicDefense: 75,
+    speed: 75
+}; // Total: 445
 
-const auraAbility = {
+const auraAbility: Ability = {
     abilityName: "Until the End of Time",
     abilityEffectString: `Aura controls an undead army. 50% of damage targeted towards her is transferred to the army instead. Start with 60 Army Strength. At end of turn, lose soldiers if Army Strength drops too low.`,
     
@@ -68,36 +75,39 @@ const auraAbility = {
         }
     ],
 
-    abilityStartOfTurnEffect: (character: any, battle: any) => {
+    abilityStartOfTurnEffect: (character: Character, battle: any) => {
+        const auraChar = character as AuraCharacter;
         // Initialize army on first turn
         if (battle.state.turn === 1) {
-            character.armyStrength = 60;
+            auraChar.armyStrength = 60;
             battle.logMessage(`${character.name} raises her undead army!`);
         }
     },
 
-    abilityOnDamageReceived: (character: any, battle: any, damage: number) => {
+    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
+        const auraChar = character as AuraCharacter;
         // Army absorbs 50% of damage
-        const armyStrength = character.armyStrength || 0;
+        const armyStrength = auraChar.armyStrength || 0;
         if (armyStrength > 0) {
             const absorbedDamage = Math.floor(damage * 0.5);
-            character.armyStrength = Math.max(0, armyStrength - absorbedDamage);
+            auraChar.armyStrength = Math.max(0, armyStrength - absorbedDamage);
             battle.logMessage(`${character.name}'s army absorbs ${absorbedDamage} damage!`);
             return damage - absorbedDamage; // Return reduced damage
         }
         return damage;
     },
 
-    abilityEndOfTurnEffect: (character: any, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+        const auraChar = character as AuraCharacter;
         // Army maintenance - lose soldiers if strength is too low
-        const armyStrength = character.armyStrength || 0;
+        const armyStrength = auraChar.armyStrength || 0;
         if (armyStrength < 20 && armyStrength > 0) {
-            character.armyStrength = Math.max(0, armyStrength - 5);
+            auraChar.armyStrength = Math.max(0, armyStrength - 5);
             battle.logMessage(`${character.name}'s army weakens as soldiers fall!`);
         }
     },
 
-    preventCondition: (_character: any, condition: CombatCondition) => {
+    preventCondition: (_character: Character, condition: CombatCondition) => {
         // Demon lord immunity
         if (condition === CombatCondition.Fear || condition === CombatCondition.Charmed) {
             return true; // Complete immunity
@@ -105,7 +115,7 @@ const auraAbility = {
         return false;
     },
 
-    damageInputMultiplier: (_user: any, target: any, _technique: any) => {
+    damageInputMultiplier: (_user: Character, target: Character, _technique: Technique) => {
         // Reduced damage from other demons
         if (target.races?.includes(Race.Demon)) {
             return 0.7; // 30% damage reduction
@@ -119,10 +129,9 @@ const Aura = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.AURA,
         color: 0xcb83b8,
-        imageUrl: mediaLinks.auraCard,
         description: 'A powerful demon who commands vast armies of the undead. One of the Seven Sages of Destruction with overwhelming magical power.'
     },
-    level: 75,
+    level: 60,
     races: [Race.Demon],
     baseStats: auraStats,
     techniques: [

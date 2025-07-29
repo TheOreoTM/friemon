@@ -80,9 +80,6 @@ export class CharactersCommand extends Command {
                     }
                 );
 
-            if (displayInfo.imageUrl) {
-                embed.setThumbnail(displayInfo.imageUrl);
-            }
 
             return interaction.reply({ embeds: [embed] });
         }

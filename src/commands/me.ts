@@ -14,12 +14,13 @@ export class UserCommand extends Command {
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
+		interaction.deferReply();
 		const user = await this.container.db.user.findUnique({ where: { id: interaction.user.id } });
 
 		if (!user) {
-			await this.container.db.user.create({ data: { id: interaction.user.id } });
+			await this.container.db.user.create({ data: { id: interaction.user.id, username: interaction.user.username } });
 		}
 
-		return interaction.reply(`\`\`\`json\n${JSON.stringify(user, null, 2)}\n\`\`\``);
+		return interaction.editReply(`\`\`\`json\n${JSON.stringify(user, null, 2)}\n\`\`\``);
 	}
 }

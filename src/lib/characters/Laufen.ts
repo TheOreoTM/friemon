@@ -1,4 +1,5 @@
-import { CharacterData } from '../character/CharacterData';
+import { CharacterData, type Ability } from '../character/CharacterData';
+import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
@@ -6,22 +7,21 @@ import {
     SPEED_BOOST,
     ZOLTRAAK
 } from '../techniques/SharedTechniques';
-import mediaLinks from '../formatting/mediaLinks';
 
 const laufenStats = {
-    hp: 70,
-    attack: 65,
-    defense: 60,
-    magicAttack: 85,
-    magicDefense: 70,
-    speed: 120
-};
+    hp: 65,
+    attack: 60,
+    defense: 55,
+    magicAttack: 75,
+    magicDefense: 60,
+    speed: 105
+}; // Total: 420
 
-const laufenAbility = {
+const laufenAbility: Ability = {
     abilityName: "Graze",
     abilityEffectString: `Reduce opponent's attack damage by speed difference percentage. High speed allows dodging attacks.`,
     
-    abilityOnDamageReceived: (character: any, battle: any, damage: number) => {
+    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
         const opponentSpeed = battle.getOpponent(character).getEffectiveStats().speed;
         const speedDiff = character.getEffectiveStats().speed - opponentSpeed;
         const grazeReduction = Math.min(Math.max(speedDiff / 100, 0), 0.8);
@@ -39,7 +39,6 @@ const Laufen = new CharacterData({
     cosmetic: {
         emoji: CharacterEmoji.LAUFEN,
         color: 0xcf7457,
-        imageUrl: mediaLinks.laufenCard,
         description: 'An incredibly fast mage who specializes in evasion and hit-and-run tactics.'
     },
     level: 35,
