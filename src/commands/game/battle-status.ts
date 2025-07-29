@@ -4,7 +4,8 @@ import { EmbedBuilder } from 'discord.js';
 import { BattleManager } from '../../lib/battle/BattleManager';
 
 @ApplyOptions<Command.Options>({
-	description: 'View your current battle status'
+	description: 'View your current battle status',
+	preconditions: ['RegistrationRequired']
 })
 export class BattleStatusCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {

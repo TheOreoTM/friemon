@@ -14,7 +14,12 @@ export class Character {
 	xpToNextLevel: number;
 	races: Race[];
 	baseStats: Stats;
-	ivs: Stats;
+	hpIv: number;
+	atkIv: number;
+	defIv: number;
+	mgAtkIv: number;
+	mgDefIv: number;
+	spdIv: number;
 	totalIV: number;
 	ivPercent: number;
 	growthPoints: Stats;
@@ -41,7 +46,12 @@ export class Character {
 		this.xpToNextLevel = this.calculateXPToNextLevel();
 		this.races = data.races || [];
 		this.baseStats = data.baseStats || { hp: 50, attack: 50, defense: 50, magicAttack: 50, magicDefense: 50, speed: 50 };
-		this.ivs = data.ivs || this.generateRandomIVs();
+		this.hpIv = data.hpIv ?? randomInt(0, 31);
+		this.atkIv = data.atkIv ?? randomInt(0, 31);
+		this.defIv = data.defIv ?? randomInt(0, 31);
+		this.mgAtkIv = data.mgAtkIv ?? randomInt(0, 31);
+		this.mgDefIv = data.mgDefIv ?? randomInt(0, 31);
+		this.spdIv = data.spdIv ?? randomInt(0, 31);
 		this.totalIV = data.totalIV ?? this.calculateTotalIV();
 		this.ivPercent = data.ivPercent ?? this.calculateIVPercent();
 		this.growthPoints = data.growthPoints || { hp: 0, attack: 0, defense: 0, magicAttack: 0, magicDefense: 0, speed: 0 };
@@ -75,19 +85,8 @@ export class Character {
 		this.volatileEffects = this.createEmptyVolatileEffects();
 	}
 
-	private generateRandomIVs(): Stats {
-		return {
-			hp: randomInt(0, 31),
-			attack: randomInt(0, 31),
-			defense: randomInt(0, 31),
-			magicAttack: randomInt(0, 31),
-			magicDefense: randomInt(0, 31),
-			speed: randomInt(0, 31)
-		};
-	}
-
 	private calculateTotalIV(): number {
-		return this.ivs.hp + this.ivs.attack + this.ivs.defense + this.ivs.magicAttack + this.ivs.magicDefense + this.ivs.speed;
+		return this.hpIv + this.atkIv + this.defIv + this.mgAtkIv + this.mgDefIv + this.spdIv;
 	}
 
 	private calculateIVPercent(): number {
@@ -115,7 +114,7 @@ export class Character {
 
 	private calculateMaxHP(): number {
 		const base = this.baseStats.hp;
-		const iv = this.ivs.hp;
+		const iv = this.hpIv;
 		const gp = Math.floor(this.growthPoints.hp / 4);
 		const hp = Math.floor(((2 * base + iv + gp) * this.level) / 100) + this.level + 10;
 
@@ -138,7 +137,26 @@ export class Character {
 		if (stat === 'hp') return this.maxHP;
 
 		const base = this.baseStats[stat];
-		const iv = this.ivs[stat];
+		let iv: number;
+		switch (stat) {
+			case 'attack':
+				iv = this.atkIv;
+				break;
+			case 'defense':
+				iv = this.defIv;
+				break;
+			case 'magicAttack':
+				iv = this.mgAtkIv;
+				break;
+			case 'magicDefense':
+				iv = this.mgDefIv;
+				break;
+			case 'speed':
+				iv = this.spdIv;
+				break;
+			default:
+				iv = 0;
+		}
 		const gp = Math.floor(this.growthPoints[stat] / 4);
 		let value = Math.floor(((2 * base + iv + gp) * this.level) / 100) + 5;
 
@@ -378,13 +396,5 @@ export class Character {
 
 	getIVPercent(): number {
 		return this.ivPercent;
-	}
-
-	getIVInfo(): { total: number; percent: number; individual: Stats } {
-		return {
-			total: this.totalIV,
-			percent: this.ivPercent,
-			individual: { ...this.ivs }
-		};
 	}
 }

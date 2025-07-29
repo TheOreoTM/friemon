@@ -15,118 +15,122 @@ datasource db {
 
 model User {
   id        String   @id // Discord user ID
-  username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Game data
-  currency  Int      @default(1000)
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  rank      String   @default("Bronze")
-  
+  currency Int    @default(1000)
+  wins     Int    @default(0)
+  losses   Int    @default(0)
+  rank     String @default("Bronze")
+
   // Owned characters - now using new system
   characters UserCharacter[]
   battles    Battle[]        @relation("UserBattles")
-  
+
   @@map("users")
 }
 
 model UserCharacter {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Character data - now references CharacterName enum values
-  characterName String  // References CharacterName enum (e.g., "Frieren", "Fern")
+  characterName String // References CharacterName enum (e.g., "Frieren", "Fern")
   level         Int     @default(1)
   currentXP     Int     @default(0)
   nickname      String? // Optional custom name
-  
+
   // Current battle stats (derived from base stats + level + bonuses)
-  currentHP     Int
-  maxHP         Int
-  currentMana   Int
-  maxMana       Int
-  
+  currentHP   Int
+  maxHP       Int
+  currentMana Int
+  maxMana     Int
+
   // Individual Values (for stat variation between same characters)
-  ivs           Json    // HP, Attack, Defense, MagicAttack, MagicDefense, Speed IVs
-  totalIV       Int     @default(0) // Sum of all IVs
-  ivPercent     Float   @default(0.0) // IV percentage (totalIV / 186 * 100)
-  
+  hpIv      Int   @default(0)
+  atkIv     Int   @default(0)
+  defIv     Int   @default(0)
+  mgAtkIv   Int   @default(0)
+  mgDefIv   Int   @default(0)
+  spdIv     Int   @default(0)
+  totalIV   Int   @default(0) // Sum of all IVs
+  ivPercent Float @default(0.0) // IV percentage (totalIV / 186 * 100)
+
   // Character customization (future expansion)
-  customization Json    @default("{}") // Cosmetic customizations, alternate forms, etc.
-  
+  customization Json @default("{}") // Cosmetic customizations, alternate forms, etc.
+
   // Metadata
-  isStarter     Boolean  @default(false) // Was this a starter character?
-  obtainedFrom  String?  // "starter", "shop", "reward", "event", etc.
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  isStarter    Boolean @default(false) // Was this a starter character?
+  obtainedFrom String? // "starter", "shop", "reward", "event", etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Indexes for performance
   @@index([userId, characterName])
   @@map("user_characters")
 }
 
 model Battle {
-  id          String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Participants
-  player1Id   String
-  player2Id   String?  // Null for AI battles
-  player1     User     @relation("UserBattles", fields: [player1Id], references: [id])
-  
+  player1Id String
+  player2Id String? // Null for AI battles
+  player1   User    @relation("UserBattles", fields: [player1Id], references: [id])
+
   // Battle settings
-  isAIBattle  Boolean  @default(true)
-  aiMindset   String?  // AIMindset enum value
-  
+  isAIBattle Boolean @default(true)
+  aiMindset  String? // AIMindset enum value
+
   // Battle state
-  status      String   @default("waiting") // waiting, active, completed, cancelled
-  winnerId    String?  // User ID of winner, null if ongoing
-  
+  status   String  @default("waiting") // waiting, active, completed, cancelled
+  winnerId String? // User ID of winner, null if ongoing
+
   // Battle teams (JSON arrays of character data used in this battle)
-  player1Team Json     // Array of character snapshots at battle start
-  player2Team Json?    // Array of character snapshots at battle start (null for AI)
-  
+  player1Team Json // Array of character snapshots at battle start
+  player2Team Json? // Array of character snapshots at battle start (null for AI)
+
   // Serialized battle data
-  battleData  Json?    // Complete battle state for resuming
-  battleLog   String[] @default([])
-  
+  battleData Json? // Complete battle state for resuming
+  battleLog  String[] @default([])
+
   // Battle results
-  turns       Int?     // Number of turns the battle lasted
-  duration    Int?     // Battle duration in seconds
-  
+  turns    Int? // Number of turns the battle lasted
+  duration Int? // Battle duration in seconds
+
   // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
-  
+
   @@map("battles")
 }
 
 model Tournament {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   name        String
   description String
-  
+
   // Tournament settings
   maxParticipants Int
-  entryFee        Int     @default(0)
-  prizePool       Int     @default(0)
-  
+  entryFee        Int @default(0)
+  prizePool       Int @default(0)
+
   // Status
-  status      String   @default("registration") // registration, active, completed
-  startDate   DateTime
-  endDate     DateTime?
-  
+  status    String    @default("registration") // registration, active, completed
+  startDate DateTime
+  endDate   DateTime?
+
   // Participants
   participants TournamentParticipant[]
   matches      TournamentMatch[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("tournaments")
 }
 
@@ -135,17 +139,17 @@ model TournamentParticipant {
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   userId       String
-  
+
   // Participant data
-  teamName     String?
-  seed         Int?       // Tournament seeding
-  eliminated   Boolean    @default(false)
-  
+  teamName   String?
+  seed       Int? // Tournament seeding
+  eliminated Boolean @default(false)
+
   // Team snapshot at tournament start
-  team         Json       // Array of UserCharacter snapshots
-  
-  createdAt    DateTime   @default(now())
-  
+  team Json // Array of UserCharacter snapshots
+
+  createdAt DateTime @default(now())
+
   @@unique([tournamentId, userId])
   @@map("tournament_participants")
 }
@@ -154,82 +158,82 @@ model TournamentMatch {
   id           String     @id @default(cuid())
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  
+
   // Match details
-  round        Int
-  matchNumber  Int
-  player1Id    String
-  player2Id    String
-  winnerId     String?
-  
+  round       Int
+  matchNumber Int
+  player1Id   String
+  player2Id   String
+  winnerId    String?
+
   // Match data
-  battleId     String?    // Reference to Battle if completed
-  scheduledAt  DateTime?
-  completedAt  DateTime?
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  
+  battleId    String? // Reference to Battle if completed
+  scheduledAt DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("tournament_matches")
 }
 
 model Shop {
-  id          String   @id @default(cuid())
-  itemType    String   // "character" only now (simplified)
-  itemId      String   // Reference to CharacterName enum values
-  
-  price       Int
-  currency    String   @default("coins")
-  
+  id       String @id @default(cuid())
+  itemType String // "character" only now (simplified)
+  itemId   String // Reference to CharacterName enum values
+
+  price    Int
+  currency String @default("coins")
+
   // Availability
-  available   Boolean  @default(true)
-  stock       Int?     // Null = unlimited
-  
+  available Boolean @default(true)
+  stock     Int? // Null = unlimited
+
   // Featured/special items
-  featured    Boolean  @default(false)
-  discount    Int?     // Percentage discount
-  
+  featured Boolean @default(false)
+  discount Int? // Percentage discount
+
   // Rarity/tier info (derived from character level)
-  tier        String   // Common, Uncommon, Rare, Epic, Legendary
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  tier String // Common, Uncommon, Rare, Epic, Legendary
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("shop_items")
 }
 
 model DailyReward {
-  id        String   @id @default(cuid())
-  userId    String
-  
+  id     String @id @default(cuid())
+  userId String
+
   // Reward details
-  day       Int      // Day number in streak
-  claimed   Boolean  @default(false)
-  reward    Json     // Reward contents (currency, characters, etc.)
-  
+  day     Int // Day number in streak
+  claimed Boolean @default(false)
+  reward  Json // Reward contents (currency, characters, etc.)
+
   // Timestamps
-  date      DateTime @default(now()) // Date this reward is for
+  date      DateTime  @default(now()) // Date this reward is for
   claimedAt DateTime?
-  
+
   @@unique([userId, date])
   @@map("daily_rewards")
 }
 
 model Achievement {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   name        String
   description String
-  
+
   // Requirements
-  type        String   // "wins", "battles", "characters_collected", etc.
-  target      Int      // Target value to achieve
-  reward      Json     // Reward for completion
-  
+  type   String // "wins", "battles", "characters_collected", etc.
+  target Int // Target value to achieve
+  reward Json // Reward for completion
+
   // Achievement unlocks
-  unlockedBy  UserAchievement[]
-  
-  createdAt   DateTime @default(now())
-  
+  unlockedBy UserAchievement[]
+
+  createdAt DateTime @default(now())
+
   @@map("achievements")
 }
 
@@ -238,27 +242,27 @@ model UserAchievement {
   userId        String
   achievementId String
   achievement   Achievement @relation(fields: [achievementId], references: [id])
-  
-  progress      Int         @default(0)
-  completed     Boolean     @default(false)
-  completedAt   DateTime?
-  
+
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
   @@unique([userId, achievementId])
   @@map("user_achievements")
 }
 
 // New model for tracking character collection progress
 model CharacterCollection {
-  id            String   @id @default(cuid())
+  id            String @id @default(cuid())
   userId        String
-  characterName String   // CharacterName enum value
-  
+  characterName String // CharacterName enum value
+
   // Collection stats
-  timesObtained Int      @default(1)  // How many times user got this character
+  timesObtained Int      @default(1) // How many times user got this character
   firstObtained DateTime @default(now()) // When they first got it
-  totalBattles  Int      @default(0)  // Battles fought with this character
-  totalWins     Int      @default(0)  // Wins with this character
-  
+  totalBattles  Int      @default(0) // Battles fought with this character
+  totalWins     Int      @default(0) // Wins with this character
+
   @@unique([userId, characterName])
   @@map("character_collection")
 }

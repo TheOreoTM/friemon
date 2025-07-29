@@ -5,7 +5,8 @@ import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 import { getCharacterTier } from '../../lib/data/Characters';
 
 @ApplyOptions<Command.Options>({
-    description: 'View character movesets using an interactive menu'
+    description: 'View character movesets using an interactive menu',
+    preconditions: ['RegistrationRequired']
 })
 export class MovesetCommand extends Command {
     public override registerApplicationCommands(registry: Command.Registry) {

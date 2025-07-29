@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 declare module '@sapphire/framework' {
 	interface Preconditions {
 		OwnerOnly: never;
+		RegistrationRequired: never;
 	}
 }
 

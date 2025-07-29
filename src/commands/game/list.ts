@@ -5,7 +5,8 @@ import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 import { getCharacterTier } from '../../lib/data/Characters';
 
 @ApplyOptions<Command.Options>({
-	description: 'List all your characters with their stats and IVs'
+	description: 'List all your characters with their stats and IVs',
+	preconditions: ['RegistrationRequired']
 })
 export class ListCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
@@ -50,9 +51,8 @@ export class ListCommand extends Command {
 					const displayInfo = characterData.getDisplayInfo();
 					const tier = getCharacterTier(displayInfo.name);
 					
-					// Parse IVs from JSON
-					const ivs = userChar.ivs as any;
-					const ivSummary = `${ivs.hp}/${ivs.attack}/${ivs.defense}/${ivs.magicAttack}/${ivs.magicDefense}/${ivs.speed}`;
+					// Create IV summary from separate fields
+					const ivSummary = `${userChar.hpIv}/${userChar.atkIv}/${userChar.defIv}/${userChar.mgAtkIv}/${userChar.mgDefIv}/${userChar.spdIv}`;
 					
 					embed.addFields({
 						name: `${index + 1}. ${displayInfo.emoji} ${userChar.nickname || displayInfo.name}`,

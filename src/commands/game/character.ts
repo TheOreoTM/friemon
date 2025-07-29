@@ -5,7 +5,8 @@ import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 import { getCharacterTier } from '../../lib/data/Characters';
 
 @ApplyOptions<Command.Options>({
-	description: 'View and manage your characters'
+	description: 'View and manage your characters',
+	preconditions: ['RegistrationRequired']
 })
 export class CharacterCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {

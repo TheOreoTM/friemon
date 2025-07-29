@@ -5,7 +5,8 @@ import { BattleManager } from '../../lib/battle/BattleManager';
 import { BattleCollector } from '../../lib/battle/BattleCollector';
 
 @ApplyOptions<Command.Options>({
-	description: 'Challenge another player to battle'
+	description: 'Challenge another player to battle',
+	preconditions: ['RegistrationRequired']
 })
 export class BattleCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {

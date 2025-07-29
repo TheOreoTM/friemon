@@ -1,8 +1,10 @@
 import { AllFlowsPrecondition } from '@sapphire/framework';
-import { getUser } from '@src/lib/util/db/user';
 import type { CommandInteraction, ContextMenuCommandInteraction, Message, Snowflake } from 'discord.js';
+import { container } from '@sapphire/framework';
 
 export class UserPrecondition extends AllFlowsPrecondition {
+	#message = 'You must register first! Please use `/start` to begin your journey and select a starter character.';
+
 	public override async chatInputRun(interaction: CommandInteraction) {
 		return await this.doRegistrationCheck(interaction.user.id);
 	}
@@ -16,10 +18,22 @@ export class UserPrecondition extends AllFlowsPrecondition {
 	}
 
 	private async doRegistrationCheck(userId: Snowflake) {
-		const user = await getUser(userId);
-		if (user.id) {
-			return this.ok();
+		try {
+			const user = await container.db.user.findUnique({
+				where: { id: userId },
+				include: { characters: true }
+			});
+
+			// User exists and has at least one character (completed registration)
+			if (user && user.characters.length > 0) {
+				return this.ok();
+			}
+
+			// User doesn't exist or hasn't completed registration
+			return this.error({ message: this.#message });
+		} catch (error) {
+			console.error('Error in RegistrationRequired precondition:', error);
+			return this.error({ message: 'An error occurred while checking your registration status.' });
 		}
-		return this.error();
 	}
 }
