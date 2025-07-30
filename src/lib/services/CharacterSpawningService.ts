@@ -12,12 +12,12 @@ interface ChannelSpawnData {
 export class CharacterSpawningService {
 	private static instance: CharacterSpawningService;
 	private channelData = new Map<string, ChannelSpawnData>();
-	
+
 	// Configuration
-	private readonly MESSAGES_PER_SPAWN = 50; // Characters spawn every X messages
-	private readonly SPAWN_COOLDOWN = 300000; // 5 minutes cooldown between spawns
+	private readonly MESSAGES_PER_SPAWN = 5; // Characters spawn every X messages
+	private readonly SPAWN_COOLDOWN = 0; // millisecond cooldown between spawns
 	private readonly MAX_SPAWNS_PER_DAY = 200; // Maximum spawns per channel per day
-	private readonly SPAWN_CHANCE = 0.7; // 70% chance to spawn when conditions are met
+	private readonly SPAWN_CHANCE = 0.7; // % chance to spawn when conditions are met
 
 	public static getInstance(): CharacterSpawningService {
 		if (!CharacterSpawningService.instance) {
@@ -31,10 +31,10 @@ export class CharacterSpawningService {
 	public async handleMessage(channelId: string, channel: TextChannel): Promise<void> {
 		// Initialize or get channel data
 		const data = this.getChannelData(channelId);
-		
+
 		// Increment message count
 		data.messageCount++;
-		
+
 		// Check if spawning conditions are met
 		if (this.shouldSpawn(data)) {
 			await this.spawnCharacter(channel);
@@ -69,7 +69,7 @@ export class CharacterSpawningService {
 
 	private shouldSpawn(data: ChannelSpawnData): boolean {
 		const now = Date.now();
-		
+
 		// Check message count threshold
 		if (data.messageCount < this.MESSAGES_PER_SPAWN) {
 			return false;
@@ -99,28 +99,29 @@ export class CharacterSpawningService {
 			const character = this.getRandomCharacter();
 			if (!character) return;
 
-			const displayInfo = character.getDisplayInfo();
-			const tier = getCharacterTier(displayInfo.name);
+			// Character is now a Character instance with random level
+			const tier = getCharacterTier(character.name);
 
 			// Create spawn embed
 			const embed = new EmbedBuilder()
 				.setTitle('✨ A wild character appeared!')
 				.setColor(this.getTierColor(tier))
-				.setDescription(`${displayInfo.emoji} **${displayInfo.name}** has appeared in the channel!`)
+				.setDescription(`**${character.name}** has appeared in the channel!`)
 				.addFields(
 					{
 						name: '📊 Character Info',
 						value: [
-							`**Level:** ${displayInfo.level}`,
-							`**Races:** ${displayInfo.races.join(', ')}`,
+							`**Level:** ${character.level}`,
+							`**Races:** ${character.races.join(', ')}`,
 							`**Tier:** ${tier}`,
-							`**Total Stats:** ${displayInfo.statTotal}`
+							`**HP:** ${character.maxHP}`,
+							`**Total IVs:** ${character.totalIV}/186 (${character.ivPercent}%)`
 						].join('\n'),
 						inline: true
 					},
 					{
 						name: '🎯 Ability',
-						value: `**${displayInfo.ability}**\n${displayInfo.abilityDescription.slice(0, 100)}${displayInfo.abilityDescription.length > 100 ? '...' : ''}`,
+						value: `**${character.trait.name}**\n${character.trait.description.slice(0, 100)}${character.trait.description.length > 100 ? '...' : ''}`,
 						inline: true
 					}
 				)
@@ -131,7 +132,6 @@ export class CharacterSpawningService {
 
 			// TODO: Store the spawned character in a temporary collection for capture
 			// This would require implementing a capture mechanism
-
 		} catch (error) {
 			console.error('Error spawning character:', error);
 		}
@@ -142,18 +142,24 @@ export class CharacterSpawningService {
 		if (characters.length === 0) return null;
 
 		// Weighted selection based on character level/tier
-		const weights = characters.map(char => {
+		const weights = characters.map((char) => {
 			const displayInfo = char.getDisplayInfo();
 			const tier = getCharacterTier(displayInfo.name);
-			
+
 			// Lower level characters have higher spawn weights
 			switch (tier) {
-				case 'Common': return 50;
-				case 'Uncommon': return 30;
-				case 'Rare': return 15;
-				case 'Epic': return 4;
-				case 'Legendary': return 1;
-				default: return 25;
+				case 'Common':
+					return 50;
+				case 'Uncommon':
+					return 30;
+				case 'Rare':
+					return 15;
+				case 'Epic':
+					return 4;
+				case 'Legendary':
+					return 1;
+				default:
+					return 25;
 			}
 		});
 
@@ -163,22 +169,30 @@ export class CharacterSpawningService {
 		for (let i = 0; i < characters.length; i++) {
 			random -= weights[i];
 			if (random <= 0) {
-				return characters[i];
+				// Create character instance with random level instead of using static data
+				return characters[i].createCharacterWithRandomLevel();
 			}
 		}
 
 		// Fallback
-		return characters[Math.floor(Math.random() * characters.length)];
+		const randomChar = characters[Math.floor(Math.random() * characters.length)];
+		return randomChar.createCharacterWithRandomLevel();
 	}
 
 	private getTierColor(tier: string): number {
 		switch (tier) {
-			case 'Common': return 0x95a5a6;
-			case 'Uncommon': return 0x27ae60;
-			case 'Rare': return 0x3498db;
-			case 'Epic': return 0x9b59b6;
-			case 'Legendary': return 0xf39c12;
-			default: return 0x95a5a6;
+			case 'Common':
+				return 0x95a5a6;
+			case 'Uncommon':
+				return 0x27ae60;
+			case 'Rare':
+				return 0x3498db;
+			case 'Epic':
+				return 0x9b59b6;
+			case 'Legendary':
+				return 0xf39c12;
+			default:
+				return 0x95a5a6;
 		}
 	}
 
@@ -197,12 +211,14 @@ export class CharacterSpawningService {
 		this.channelData.delete(channelId);
 	}
 
-	public setSpawnConfig(config: Partial<{
-		messagesPerSpawn: number;
-		spawnCooldown: number;
-		maxSpawnsPerDay: number;
-		spawnChance: number;
-	}>): void {
+	public setSpawnConfig(
+		config: Partial<{
+			messagesPerSpawn: number;
+			spawnCooldown: number;
+			maxSpawnsPerDay: number;
+			spawnChance: number;
+		}>
+	): void {
 		if (config.messagesPerSpawn) (this as any).MESSAGES_PER_SPAWN = config.messagesPerSpawn;
 		if (config.spawnCooldown) (this as any).SPAWN_COOLDOWN = config.spawnCooldown;
 		if (config.maxSpawnsPerDay) (this as any).MAX_SPAWNS_PER_DAY = config.maxSpawnsPerDay;

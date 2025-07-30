@@ -148,6 +148,17 @@ export class CharacterRegistry {
     }
 
     /**
+     * Create a Character instance with random level from character name
+     */
+    public static createRandomLevelCharacterInstance(name: CharacterName) {
+        const characterData = this.getCharacter(name);
+        if (!characterData) {
+            throw new Error(`Character ${name} not found in registry`);
+        }
+        return characterData.createCharacterWithRandomLevel();
+    }
+
+    /**
      * Get display information for all characters (for UI)
      */
     public static getCharacterDisplayList() {

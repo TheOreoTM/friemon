@@ -35,7 +35,6 @@ export interface VolatileEffect {
 	magicSeal: boolean;
 }
 
-
 export interface Trait {
 	name: string;
 	description: string;
@@ -47,6 +46,12 @@ export interface Trait {
 	onEnvironment?: (character: Character, battle: Battle) => void;
 	manaRestoreOnKO?: (user: Character, battle: Battle) => number;
 	onTurnEnd?: (character: Character, battle: Battle) => void;
+	onTurnStart?: (character: Character, battle: Battle) => void;
+	onTechniqueUsed?: (character: Character, battle: Battle, technique: Technique) => void;
+	onOpponentTechniqueUsed?: (character: Character, battle: Battle, technique: Technique) => void;
+	onDamageReceived?: (character: Character, battle: Battle, damage: number) => void;
+	onDamageDealt?: (character: Character, battle: Battle, damage: number) => void;
+	damageInputMultiplier?: (user: Character, target: Character, technique: Technique) => number;
 }
 
 export interface Equipment {

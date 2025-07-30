@@ -1,6 +1,7 @@
 import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { Battle } from './Battle';
 import { Character } from '../character/Character';
+import { CharacterImages } from '../util/imageManager';
 
 export class BattleInterface {
 	private battle: Battle;
@@ -48,22 +49,24 @@ export class BattleInterface {
 			});
 		}
 
-		// Team status
+		// Team status with position numbers
 		const userTeam = this.battle.getUserCharacters();
 		const opponentTeam = this.battle.getOpponentCharacters();
 
-		const userStatus = userTeam.map(char => {
+		const userStatus = userTeam.map((char, index) => {
+			const position = index + 1;
 			const hpBar = this.createHPBar(char);
 			const active = char === userCharacter ? '👑' : '';
 			const status = char.isDefeated() ? '💀' : '';
-			return `${active}${status} **${char.name}** ${hpBar}`;
+			return `${position}.${active}${status} **${char.name}** ${hpBar}`;
 		}).join('\n');
 
-		const opponentStatus = opponentTeam.map(char => {
+		const opponentStatus = opponentTeam.map((char, index) => {
+			const position = index + 1;
 			const hpBar = this.createHPBar(char);
 			const active = char === opponentCharacter ? '👑' : '';
 			const status = char.isDefeated() ? '💀' : '';
-			return `${active}${status} **${char.name}** ${hpBar}`;
+			return `${position}.${active}${status} **${char.name}** ${hpBar}`;
 		}).join('\n');
 
 		embed.addFields(
@@ -135,6 +138,12 @@ public createMoveSelectionMenu(isPlayer1?: boolean): ActionRowBuilder<StringSele
 					description += ` | ${technique.power} power`;
 				}
 				description += ` | ${technique.manaCost} MP`;
+				
+				// Add targeting info
+				const targetingInfo = this.getTargetingDescription(technique.targetType, technique.multiTargetCount);
+				if (targetingInfo) {
+					description += ` | ${targetingInfo}`;
+				}
 				
 				// Add accuracy info
 				if (technique.precision < 1.0) {
@@ -586,5 +595,42 @@ public createMoveSelectionMenu(isPlayer1?: boolean): ActionRowBuilder<StringSele
 			'Spirit': '👻'
 		};
 		return emojiMap[race] || '👤';
+	}
+
+	private getTargetingDescription(targetType: string, multiTargetCount?: number): string {
+		const targetingMap: { [key: string]: string } = {
+			'single': 'Single target',
+			'chooseTarget': '🎯 Choose target',
+			'multiTarget': `Hits ${multiTargetCount || 2} enemies`,
+			'allEnemies': 'All enemies',
+			'self': 'Self only'
+		};
+		return targetingMap[targetType] || '';
+	}
+
+	public createTargetSelectionMenu(technique: any, availableTargets: Character[]): any {
+		if (!this.battle.requiresTargetSelection(technique)) {
+			return null;
+		}
+
+		const options = availableTargets.map((target, index) => {
+			const hpPercent = Math.round((target.currentHP / target.maxHP) * 100);
+			const position = this.battle.opponentTeam.findCharacter(target) + 1;
+			
+			return {
+				label: `🎯 Target ${position}. ${target.name}`,
+				value: `target_${target.name}_${index}`,
+				description: `Level ${target.level} | ${hpPercent}% HP | ${target.currentMana}/${target.maxMana} MP`,
+				emoji: this.getRaceEmoji(target.races[0])
+			};
+		});
+
+		const selectMenu = new StringSelectMenuBuilder()
+			.setCustomId('battle_target_select')
+			.setPlaceholder('Choose your target...')
+			.addOptions(options);
+
+		return new ActionRowBuilder<StringSelectMenuBuilder>()
+			.addComponents(selectMenu);
 	}
 }

@@ -3,14 +3,17 @@ import { Technique } from '../character/Technique';
 import { AmbientMagicCondition, TerrainType, TechniqueCategory, CombatCondition, Affinity, TechniqueEffectType } from '../types/enums';
 import { BattleState } from '../types/interfaces';
 import { TechniqueEffect } from '../character/TechniqueEffect';
-import { HazardType } from '../types/types';
+import { HazardType, TeamPosition } from '../types/types';
 import { getAffinityAdvantage } from '../data/AffinityChart';
 import { randomFloat } from '../util/utils';
+import { TeamManager } from './TeamManager';
 
 export class Battle {
 	public state: BattleState;
 	private battleLog: string[] = [];
 	private turnActions: Map<string, { action: string; target?: string }> = new Map();
+	public userTeam: TeamManager;
+	public opponentTeam: TeamManager;
 
 	constructor(
 		userParty: Character[],
@@ -39,6 +42,9 @@ export class Battle {
 			userHazards: new Map<string, number>(),
 			opponentHazards: new Map<string, number>()
 		};
+
+		this.userTeam = new TeamManager(userParty, 0);
+		this.opponentTeam = new TeamManager(opponentParty, 0);
 
 		this.initializeBattle();
 	}
@@ -69,6 +75,44 @@ export class Battle {
 		}
 
 		this.logMessage(`Battle begins! ${this.state.userCharacter.name} vs ${this.state.opponentCharacter.name}!`);
+	}
+
+	public executeTechniqueWithTargeting(user: Character, technique: Technique, selectedTarget?: Character): boolean {
+		const isUserTeam = this.userTeam.findCharacter(user) !== -1;
+		const userTeam = isUserTeam ? this.userTeam : this.opponentTeam;
+		const opponentTeam = isUserTeam ? this.opponentTeam : this.userTeam;
+
+		let targets: Character[] = [];
+
+		if (technique.targetType === 'chooseTarget' && selectedTarget) {
+			// Manual target selection - use the selected target
+			if (userTeam.validateTarget(technique.targetType, selectedTarget, opponentTeam)) {
+				targets = [selectedTarget];
+			}
+		} else {
+			// Automatic targeting based on technique type
+			targets = userTeam.getTargets(technique.targetType, opponentTeam, technique.multiTargetCount);
+		}
+
+		if (targets.length === 0) {
+			this.logMessage(`${technique.name} failed - no valid targets!`);
+			return false;
+		}
+
+		// Log different messages based on targeting type
+		if (technique.targetType === 'multiTarget') {
+			this.logMessage(`${technique.name} hits ${targets.length} target${targets.length > 1 ? 's' : ''}!`);
+		} else if (technique.targetType === 'allEnemies') {
+			this.logMessage(`${technique.name} hits all enemies!`);
+		}
+
+		let success = true;
+		for (const target of targets) {
+			const result = this.executeTechnique(user, target, technique);
+			if (!result) success = false;
+		}
+
+		return success;
 	}
 
 	public executeTechnique(user: Character, target: Character, technique: Technique): boolean {
@@ -321,6 +365,7 @@ export class Battle {
 
 	public switchCharacter(isUser: boolean, newIndex: number): boolean {
 		const party = isUser ? this.state.userParty : this.state.opponentParty;
+		const team = isUser ? this.userTeam : this.opponentTeam;
 
 		// Validate switch
 		if (!this.validateSwitch(party, newIndex)) {
@@ -329,6 +374,9 @@ export class Battle {
 
 		const newCharacter = party[newIndex];
 		const currentCharacter = isUser ? this.state.userCharacter : this.state.opponentCharacter;
+
+		// Update team manager
+		team.switchToIndex(newIndex);
 
 		if (isUser) {
 			this.logMessage(`${currentCharacter.name}, return!`);
@@ -682,22 +730,75 @@ export class Battle {
 		return false;
 	}
 
-	private autoSwitchCharacter(isUser: boolean): boolean {
-		const party = isUser ? this.state.userParty : this.state.opponentParty;
-		const currentIndex = isUser ? this.state.userActiveIndex : this.state.opponentActiveIndex;
+	public switchToPosition(isUser: boolean, position: TeamPosition): boolean {
+		const team = isUser ? this.userTeam : this.opponentTeam;
+		const success = team.switchToPosition(position);
 
-		// Find the first available character that isn't defeated
-		for (let i = 0; i < party.length; i++) {
-			if (i !== currentIndex && !party[i].isDefeated()) {
-				const success = this.switchCharacter(isUser, i);
-				if (success) {
-					this.logMessage(`${party[i].name} was automatically sent out!`);
-					return true;
-				}
+		if (success) {
+			const newCharacter = team.getActiveCharacter()!;
+			const currentCharacter = isUser ? this.state.userCharacter : this.state.opponentCharacter;
+
+			if (isUser) {
+				this.logMessage(`${currentCharacter.name}, return!`);
+				this.state.userCharacter = newCharacter;
+				this.state.userActiveIndex = team.getActiveIndex();
+			} else {
+				this.logMessage(`${currentCharacter.name}, return!`);
+				this.state.opponentCharacter = newCharacter;
+				this.state.opponentActiveIndex = team.getActiveIndex();
+			}
+
+			this.logMessage(`Go, ${newCharacter.name}!`);
+
+			if (newCharacter.trait.onEnterField) {
+				const opponent = isUser ? this.state.opponentCharacter : this.state.userCharacter;
+				newCharacter.trait.onEnterField(newCharacter, opponent, this);
 			}
 		}
 
-		// No available characters to switch to - the side has lost
+		return success;
+	}
+
+	public getCharacterAtPosition(isUser: boolean, position: TeamPosition): Character | null {
+		const team = isUser ? this.userTeam : this.opponentTeam;
+		return team.getPosition(position);
+	}
+
+	public getAvailableTargets(technique: Technique, isUserTechnique: boolean): Character[] {
+		const userTeam = isUserTechnique ? this.userTeam : this.opponentTeam;
+		const opponentTeam = isUserTechnique ? this.opponentTeam : this.userTeam;
+		return userTeam.getTargets(technique.targetType, opponentTeam);
+	}
+
+	public requiresTargetSelection(technique: Technique): boolean {
+		return this.userTeam.requiresTargetSelection(technique.targetType);
+	}
+
+	private autoSwitchCharacter(isUser: boolean): boolean {
+		const team = isUser ? this.userTeam : this.opponentTeam;
+		const success = team.autoSwitchToNext();
+
+		if (success) {
+			const newCharacter = team.getActiveCharacter()!;
+
+			if (isUser) {
+				this.state.userCharacter = newCharacter;
+				this.state.userActiveIndex = team.getActiveIndex();
+			} else {
+				this.state.opponentCharacter = newCharacter;
+				this.state.opponentActiveIndex = team.getActiveIndex();
+			}
+
+			this.logMessage(`${newCharacter.name} was automatically sent out!`);
+
+			if (newCharacter.trait.onEnterField) {
+				const opponent = isUser ? this.state.opponentCharacter : this.state.userCharacter;
+				newCharacter.trait.onEnterField(newCharacter, opponent, this);
+			}
+
+			return true;
+		}
+
 		const playerName = isUser ? 'Player 1' : 'Player 2';
 		this.logMessage(`${playerName} has no more characters able to battle!`);
 		return false;
@@ -727,5 +828,18 @@ export class Battle {
 			switches,
 			canFlee: true // Players can always attempt to flee
 		};
+	}
+
+	public getTeamStatus(isUser: boolean): string {
+		const team = isUser ? this.userTeam : this.opponentTeam;
+		return team.getTeamStatus();
+	}
+
+	public getPositionSwitchOptions(isUser: boolean): { position: TeamPosition; character: Character }[] {
+		const team = isUser ? this.userTeam : this.opponentTeam;
+		return team.getAvailableSwitches().map((char) => ({
+			position: (team.findCharacter(char) + 1) as TeamPosition,
+			character: char
+		}));
 	}
 }

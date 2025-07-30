@@ -1,6 +1,6 @@
 import { Affinity, TechniqueCategory } from '../types/enums';
 import { TechniqueEffect } from './TechniqueEffect';
-import { TechniqueProperty } from '../types/types';
+import { TechniqueProperty, TargetType } from '../types/types';
 import { Character } from './Character';
 import { Battle } from '../battle/Battle';
 
@@ -14,6 +14,8 @@ export class Technique {
 	initiative: number;
 	effects: TechniqueEffect[];
 	properties: { [key in TechniqueProperty]?: boolean };
+	targetType: TargetType;
+	multiTargetCount?: number; // How many targets for multiTarget techniques (default 2)
 	description: string;
 	execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
 
@@ -27,6 +29,8 @@ export class Technique {
 		initiative?: number; // Priority
 		effects?: TechniqueEffect[];
 		properties?: { [key in TechniqueProperty]?: boolean };
+		targetType?: TargetType;
+		multiTargetCount?: number;
 		description: string;
 		execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
 	}) {
@@ -39,6 +43,8 @@ export class Technique {
 		this.initiative = data.initiative || 0;
 		this.effects = data.effects || [];
 		this.properties = data.properties || {};
+		this.targetType = data.targetType || 'single';
+		this.multiTargetCount = data.multiTargetCount || 2;
 		this.description = data.description;
 		this.execute = data.execute;
 	}

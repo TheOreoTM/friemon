@@ -1,10 +1,10 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { Listener } from '@sapphire/framework';
+import { Events, Listener } from '@sapphire/framework';
 import { Message, TextChannel } from 'discord.js';
 import { CharacterSpawningService } from '../lib/services/CharacterSpawningService';
 
 @ApplyOptions<Listener.Options>({
-	event: 'messageCreate'
+	event: Events.MessageCreate
 })
 export class MessageCreateListener extends Listener {
 	private spawningService = CharacterSpawningService.getInstance();

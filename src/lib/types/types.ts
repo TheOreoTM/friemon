@@ -8,4 +8,8 @@ export type TechniqueProperty =
     'weaponBased' | 'dragonSlayer' | 'holyDamage' | 'armorPiercing' | 'slashing' | 'inspirational' |
     'defensive' | 'enhancement' | 'darkMagic' | 'aura' | 'lifeDrain' | 'divine' | 'removesCurses' |
     'antiMagic' | 'reliable' | 'elementalType' | 'summoning' | 'overwhelming' | 'movement' |
-    'physical' | 'empathy' | 'rapid' | 'theory' | 'evasion';
+    'physical' | 'empathy' | 'rapid' | 'theory' | 'evasion' | 'precisionTarget' | 'multiTarget' | 'allEnemyTarget';
+
+export type TargetType = 'single' | 'chooseTarget' | 'multiTarget' | 'allEnemies' | 'self';
+
+export type TeamPosition = 1 | 2 | 3;
