@@ -121,7 +121,7 @@ export class ChannelUpdateListener {
 		const player1Channel = guild.channels.cache.get(session.player1ThreadId!);
 		const player2Channel = guild.channels.cache.get(session.player2ThreadId!);
 
-		const resultEmbed = session.interface.createBattleResultEmbed();
+		const resultEmbed = session.interface.createBattleResultEmbed(session);
 
 		if (player1Channel && player1Channel.isTextBased()) {
 			await player1Channel.send({

@@ -9,6 +9,7 @@ import {
     DEFENSIVE_MAGIC,
     MANA_SHIELD
 } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 // Denken-specific interface that extends Character with additional metadata
 interface DenkenCharacter extends Character {
@@ -28,7 +29,7 @@ const denkenAbility: Ability = {
     abilityName: "Perseverance",
     abilityEffectString: `Start with 3 Perseverance stacks. When HP reaches 0 or below, lose 1 stack and continue fighting. Lose when stacks reach 0 or HP drops below -40.`,
     
-    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
         const denkenChar = character as DenkenCharacter;
         if (character.currentHP <= 0) {
             const stacks = denkenChar.perseveranceStacks || 3;
@@ -39,9 +40,9 @@ const denkenAbility: Ability = {
                 }
                 
                 if (denkenChar.perseveranceStacks > 0) {
-                    battle.logMessage(`${character.name} steels himself! (${denkenChar.perseveranceStacks} stacks remaining)`);
+                    battle.addToBattleLog(`${character.name} steels himself! (${denkenChar.perseveranceStacks} stacks remaining)`);
                 } else {
-                    battle.logMessage(`${character.name}'s strength finally fades.`);
+                    battle.addToBattleLog(`${character.name}'s strength finally fades.`);
                 }
             }
         }

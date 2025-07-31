@@ -12,6 +12,7 @@ declare module '@sapphire/framework' {
 declare module '@skyra/env-utilities' {
 	interface Env {
 		OWNERS: ArrayString;
+		GAME_CHANNEL: string;
 	}
 }
 

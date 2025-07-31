@@ -3,6 +3,10 @@ import { BattleInterface } from './BattleInterface';
 import { Character } from '../character/Character';
 import { CharacterRegistry } from '../characters/CharacterRegistry';
 import { battleEvents } from './BattleEventEmitter';
+import { BattleActionType, PlayerAction, ActionExecutionResult } from '../types/interfaces';
+import { AmbientMagicCondition, TerrainType } from '../types/enums';
+import { ChannelType, type Guild } from 'discord.js';
+import { GAME_CHANNEL_ID, BATTLE_CONSTANTS } from '../util/constants';
 
 export interface BattleSession {
 	id: string;
@@ -10,26 +14,23 @@ export interface BattleSession {
 	interface: BattleInterface;
 	player1Id: string;
 	player2Id: string;
+	player1DisplayName: string;
+	player2DisplayName: string;
 	createdAt: Date;
 	timeoutCount: Map<string, number>;
 	lastActionTime: Date;
 	playerActions: Map<string, boolean>;
-	pendingActions: Map<string, { action: 'attack' | 'switch' | 'item' | 'flee'; target?: string }>;
+	pendingActions: Map<string, PlayerAction>;
 	currentTurn: number;
-	// Thread management
 	player1ThreadId?: string;
 	player2ThreadId?: string;
 	battleLogThreadId?: string;
-	player1ChannelId?: string;
-	player2ChannelId?: string;
-	battleLogChannelId?: string;
 }
 
 export class BattleManager {
 	private static activeBattles: Map<string, BattleSession> = new Map();
 
-
-	public static createPlayerBattle(player1Id: string, player2Id: string): BattleSession {
+	public static async createPlayerBattle(player1Id: string, player2Id: string, guild: Guild): Promise<BattleSession> {
 		// Validate player IDs
 		if (!player1Id || !player2Id || player1Id === player2Id) {
 			throw new Error('Invalid player IDs for battle creation');
@@ -40,54 +41,65 @@ export class BattleManager {
 			throw new Error('One or both players are already in a battle');
 		}
 
+		// Fetch player display names - required for battle creation
+		const player1Member = await guild.members.fetch(player1Id);
+		const player2Member = await guild.members.fetch(player2Id);
+		const player1DisplayName = player1Member.displayName;
+		const player2DisplayName = player2Member.displayName;
+
 		// TODO: Fetch both players' teams from database
 		// For now, use new character system to create random teams
 		const availableCharacters = CharacterRegistry.getStarterCharacters();
-		
+
 		if (availableCharacters.length < 2) {
 			throw new Error('Not enough characters available for battle. Need at least 2 starter characters.');
 		}
-		
+
 		// Create teams using random starter characters
 		const shuffledChars = [...availableCharacters].sort(() => Math.random() - 0.5);
 		const player1Team: Character[] = [shuffledChars[0].createCharacter()];
 		const player2Team: Character[] = [shuffledChars[1].createCharacter()];
 
 		try {
-			const battle = new Battle(player1Team, player2Team);
+			const battle = new Battle(player1Team, player2Team, AmbientMagicCondition.None, TerrainType.Normal, player1DisplayName, player2DisplayName);
 			const battleInterface = new BattleInterface(battle);
-			
+
 			// Validate initial battle state
 			const validation = battle.validateBattleState();
 			if (!validation.valid) {
 				throw new Error(`Invalid battle state: ${validation.errors.join(', ')}`);
 			}
 
-		const session: BattleSession = {
-			id: `${player1Id}_vs_${player2Id}_${Date.now()}`,
-			battle,
-			interface: battleInterface,
-			player1Id,
-			player2Id,
-			createdAt: new Date(),
-			timeoutCount: new Map([[player1Id, 0], [player2Id, 0]]),
-			lastActionTime: new Date(),
-			playerActions: new Map([[player1Id, false], [player2Id, false]]),
-			pendingActions: new Map(),
-			currentTurn: 1,
-			// Thread IDs will be set when threads are created
-			player1ThreadId: undefined,
-			player2ThreadId: undefined,
-			battleLogThreadId: undefined,
-			player1ChannelId: undefined,
-			player2ChannelId: undefined,
-			battleLogChannelId: undefined
-		};
+			const session: BattleSession = {
+				id: `${player1Id}_vs_${player2Id}_${Date.now()}`,
+				battle,
+				interface: battleInterface,
+				player1Id,
+				player2Id,
+				player1DisplayName,
+				player2DisplayName,
+				createdAt: new Date(),
+				timeoutCount: new Map([
+					[player1Id, 0],
+					[player2Id, 0]
+				]),
+				lastActionTime: new Date(),
+				playerActions: new Map([
+					[player1Id, false],
+					[player2Id, false]
+				]),
+				pendingActions: new Map(),
+				currentTurn: 1,
+				// Thread IDs will be set when threads are created
+				player1ThreadId: undefined,
+				player2ThreadId: undefined,
+				battleLogThreadId: undefined
+			};
 
 			// Store battle for both players
 			this.activeBattles.set(player1Id, session);
 			this.activeBattles.set(player2Id, session);
-			
+
 			return session;
 		} catch (error) {
 			console.error('Error creating battle:', error);
@@ -106,11 +118,7 @@ export class BattleManager {
 		return this.activeBattles.get(battleId) || null;
 	}
 
-	public static async executePlayerAction(
-		userId: string,
-		action: 'attack' | 'switch' | 'item' | 'flee',
-		target?: string
-	): Promise<{ success: boolean; message: string; battleComplete?: boolean }> {
+	public static async executePlayerAction(userId: string, action: BattleActionType, target?: string): Promise<ActionExecutionResult> {
 		const session = this.getBattle(userId);
 		if (!session) {
 			return { success: false, message: 'Battle not found!' };
@@ -163,12 +171,11 @@ export class BattleManager {
 			session.playerActions.set(userId, true);
 
 			// Return success - turn processing will be handled by event system
-			const playerName = isPlayer1 ? 'Player 1' : 'Player 2';
-			return { 
-				success: true, 
-				message: `${playerName} has selected their action.` 
+			const playerName = isPlayer1 ? session.player1DisplayName : session.player2DisplayName;
+			return {
+				success: true,
+				message: `${playerName} has selected their action.`
 			};
-
 		} catch (error) {
 			console.error('Error executing player action:', error);
 			return { success: false, message: 'An error occurred during battle!' };
@@ -178,7 +185,7 @@ export class BattleManager {
 	private static validatePlayerAction(
 		session: BattleSession,
 		userId: string,
-		action: 'attack' | 'switch' | 'item' | 'flee',
+		action: BattleActionType,
 		target?: string
 	): { valid: boolean; message: string } {
 		const { battle } = session;
@@ -238,33 +245,33 @@ export class BattleManager {
 		return { valid: true, message: '' };
 	}
 
-	public static async processTurn(session: BattleSession): Promise<{ success: boolean; message: string; battleComplete?: boolean }> {
+	public static async processTurn(session: BattleSession): Promise<ActionExecutionResult> {
 		const { battle } = session;
-		
+
 		// Check if both players have acted
 		const bothPlayersActed = session.playerActions.get(session.player1Id) && session.playerActions.get(session.player2Id);
-		
+
 		if (!bothPlayersActed) {
 			return { success: false, message: 'Not all players have acted yet' };
 		}
 
 		try {
 			console.log(`Processing turn ${session.currentTurn} for battle ${session.id}`);
-			
+
 			// Log turn action phase
 			battle.addToBattleLog(`=== Turn ${session.currentTurn} Action Phase ===`);
-			
+
 			// Execute both players' actions (this will log to battle internally)
 			await this.executeTurnActions(session);
-			
+
 			// Process turn end effects and move to next turn
 			battle.nextTurn();
-			
+
 			// Increment session turn counter AFTER battle processes its turn
 			session.currentTurn++;
-			
+
 			console.log(`Turn processed. New turn: ${session.currentTurn}, Battle turn: ${battle.state.turn}`);
-			
+
 			// Reset for next turn
 			session.playerActions.set(session.player1Id, false);
 			session.playerActions.set(session.player2Id, false);
@@ -281,11 +288,10 @@ export class BattleManager {
 				};
 			}
 
-			return { 
-				success: true, 
-				message: `Turn ${session.currentTurn - 1} complete! Starting turn ${session.currentTurn}.` 
+			return {
+				success: true,
+				message: `Turn ${session.currentTurn - 1} complete! Starting turn ${session.currentTurn}.`
 			};
-			
 		} catch (error) {
 			console.error('Error processing turn:', error);
 			return { success: false, message: 'Error processing turn!' };
@@ -299,10 +305,7 @@ export class BattleManager {
 
 		// Create default "skip" actions for players who haven't acted (timeouts)
 		const defaultAction = { action: 'skip' as const };
-		const actions = [
-			player1Action || defaultAction,
-			player2Action || defaultAction
-		];
+		const actions = [player1Action || defaultAction, player2Action || defaultAction];
 
 		// Only determine action order if both players have real actions
 		if (actions[0].action !== 'skip' || actions[1].action !== 'skip') {
@@ -313,7 +316,7 @@ export class BattleManager {
 			for (const { playerId, action } of actionOrder) {
 				// Skip if the character is defeated or action is skip
 				if (action.action === 'skip') {
-					const playerName = playerId === session.player1Id ? 'Player 1' : 'Player 2';
+					const playerName = playerId === session.player1Id ? session.player1DisplayName : session.player2DisplayName;
 					const character = playerId === session.player1Id ? battle.state.userCharacter : battle.state.opponentCharacter;
 					battle.addToBattleLog(`${character.name} (${playerName}) skipped their turn`);
 					continue;
@@ -321,7 +324,7 @@ export class BattleManager {
 
 				const isPlayer1 = playerId === session.player1Id;
 				const character = isPlayer1 ? battle.state.userCharacter : battle.state.opponentCharacter;
-				
+
 				if (character.isDefeated()) {
 					continue;
 				}
@@ -341,11 +344,11 @@ export class BattleManager {
 
 	private static determineActionOrder(
 		session: BattleSession,
-		player1Action: { action: string; target?: string },
-		player2Action: { action: string; target?: string }
-	): { playerId: string; action: { action: string; target?: string } }[] {
+		player1Action: PlayerAction,
+		player2Action: PlayerAction
+	): { playerId: string; action: PlayerAction }[] {
 		const { battle } = session;
-		
+
 		// Switch actions always go first
 		const player1IsSwitch = player1Action.action === 'switch';
 		const player2IsSwitch = player2Action.action === 'switch';
@@ -381,11 +384,7 @@ export class BattleManager {
 		}
 	}
 
-	private static executeAction(
-		session: BattleSession,
-		playerId: string,
-		action: { action: string; target?: string }
-	): void {
+	private static executeAction(session: BattleSession, playerId: string, action: PlayerAction): void {
 		const { battle } = session;
 		const isPlayer1 = playerId === session.player1Id;
 		const currentCharacter = isPlayer1 ? battle.state.userCharacter : battle.state.opponentCharacter;
@@ -400,7 +399,7 @@ export class BattleManager {
 				return; // Skip actions are handled elsewhere
 			case 'attack':
 				if (!action.target) return;
-				
+
 				const technique = currentCharacter.getTechniqueByName(action.target);
 				if (!technique) return;
 
@@ -413,7 +412,7 @@ export class BattleManager {
 
 			case 'switch':
 				if (!action.target) return;
-				
+
 				const party = isPlayer1 ? battle.state.userParty : battle.state.opponentParty;
 				const switchTarget = party.find((char) => char.name.toLowerCase() === action.target!.toLowerCase());
 
@@ -433,8 +432,7 @@ export class BattleManager {
 
 	public static async createBattleThreads(
 		session: BattleSession,
-		guild: any,
-		parentChannelId?: string
+		guild: Guild
 	): Promise<{ success: boolean; message: string; threads?: { player1: string; player2: string; battleLog: string } }> {
 		if (!session) {
 			return { success: false, message: 'Battle session not found!' };
@@ -442,31 +440,33 @@ export class BattleManager {
 
 		try {
 			const battleId = session.id.split('_')[0]; // Use first part of session ID
-			
+
 			// Find a suitable parent channel for creating threads
 			// Look for a general channel or use the first text channel
-			let parentChannel = parentChannelId ? guild.channels.cache.get(parentChannelId) : null;
+			let parentChannel = guild.channels.cache.get(GAME_CHANNEL_ID);
 			if (!parentChannel) {
-				parentChannel = guild.channels.cache.find((channel: any) => 
-					channel.type === 0 && // GUILD_TEXT
-					(channel.name.includes('general') || channel.name.includes('battles') || channel.name.includes('gaming'))
-				);
-				
-				// If no suitable channel found, use the first available text channel
-				if (!parentChannel) {
-					parentChannel = guild.channels.cache.find((channel: any) => channel.type === 0);
-				}
-				
-				if (!parentChannel) {
-					throw new Error('No suitable parent channel found for creating threads');
-				}
+				throw new Error('No suitable parent channel found for creating threads');
+			}
+
+			if (parentChannel.type !== ChannelType.GuildText) {
+				throw new Error('Parent channel must be a text channel');
+			}
+
+			const player1 = guild.members.cache.get(session.player1Id);
+			if (!player1) {
+				throw new Error('Player 1 not found in guild');
+			}
+
+			const player2 = guild.members.cache.get(session.player2Id);
+			if (!player2) {
+				throw new Error('Player 2 not found in guild');
 			}
 
 			// Create private thread for Player 1
-			const player1Thread = await parentChannel.threads.create({
-				name: `🎯 Battle ${battleId} - Player 1 Moves`,
-				autoArchiveDuration: 60, // 1 hour
-				type: 12, // GUILD_PRIVATE_THREAD
+			const player1Thread = await parentChannel.threads!.create({
+				name: `🎯 Battle ${battleId} - ${player1.user.username} Moves`,
+				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
+				type: ChannelType.PrivateThread,
 				reason: `Private move selection for Player 1 in battle ${battleId}`,
 				invitable: false
 			});
@@ -475,10 +475,10 @@ export class BattleManager {
 			await player1Thread.members.add(session.player1Id);
 
 			// Create private thread for Player 2
-			const player2Thread = await parentChannel.threads.create({
-				name: `🎯 Battle ${battleId} - Player 2 Moves`,
-				autoArchiveDuration: 60, // 1 hour
-				type: 12, // GUILD_PRIVATE_THREAD
+			const player2Thread = await parentChannel.threads!.create({
+				name: `🎯 Battle ${battleId} - ${player2.user.username} Moves`,
+				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
+				type: ChannelType.PrivateThread,
 				reason: `Private move selection for Player 2 in battle ${battleId}`,
 				invitable: false
 			});
@@ -487,10 +487,10 @@ export class BattleManager {
 			await player2Thread.members.add(session.player2Id);
 
 			// Create public thread for battle log
-			const battleLogThread = await parentChannel.threads.create({
-				name: `⚔️ Battle ${battleId} - Live Battle`,
-				autoArchiveDuration: 60, // 1 hour
-				type: 11, // GUILD_PUBLIC_THREAD
+			const battleLogThread = await parentChannel.threads!.create({
+				name: `⚔️ ${player1.user.username} vs ${player2.user.username}`,
+				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
+				type: ChannelType.PrivateThread,
 				reason: `Public battle log for battle ${battleId}`
 			});
 
@@ -502,9 +502,6 @@ export class BattleManager {
 			session.player1ThreadId = player1Thread.id;
 			session.player2ThreadId = player2Thread.id;
 			session.battleLogThreadId = battleLogThread.id;
-			session.player1ChannelId = player1Thread.id;
-			session.player2ChannelId = player2Thread.id;
-			session.battleLogChannelId = battleLogThread.id;
 
 			// Emit event that threads have been created
 			battleEvents.emitChannelsCreated(session, guild);
@@ -524,14 +521,14 @@ export class BattleManager {
 		}
 	}
 
-	public static async cleanupBattleThreads(sessionId: string, guild: any): Promise<void> {
+	public static async cleanupBattleThreads(sessionId: string, guild: Guild): Promise<void> {
 		const session = this.getBattle(sessionId);
 		if (!session) return;
 
 		try {
 			// Archive and lock threads instead of deleting them
 			// This preserves battle history while preventing further interaction
-			
+
 			if (session.player1ThreadId) {
 				const thread1 = guild.channels.cache.get(session.player1ThreadId);
 				if (thread1 && thread1.isThread()) {
@@ -539,7 +536,7 @@ export class BattleManager {
 					await thread1.setLocked(true);
 				}
 			}
-			
+
 			if (session.player2ThreadId) {
 				const thread2 = guild.channels.cache.get(session.player2ThreadId);
 				if (thread2 && thread2.isThread()) {
@@ -547,20 +544,23 @@ export class BattleManager {
 					await thread2.setLocked(true);
 				}
 			}
-			
+
 			if (session.battleLogThreadId) {
 				const logThread = guild.channels.cache.get(session.battleLogThreadId);
 				if (logThread && logThread.isThread()) {
 					// Keep the main battle log accessible but locked
 					await logThread.setLocked(true);
 					// Archive after 24 hours to let people review the battle
-					setTimeout(async () => {
-						try {
-							await logThread.setArchived(true, 'Battle review period ended');
-						} catch (error) {
-							console.error('Error archiving battle log thread:', error);
-						}
-					}, 24 * 60 * 60 * 1000); // 24 hours
+					setTimeout(
+						async () => {
+							try {
+								await logThread.setArchived(true, 'Battle review period ended');
+							} catch (error) {
+								console.error('Error archiving battle log thread:', error);
+							}
+						},
+						BATTLE_CONSTANTS.BATTLE_CLEANUP_DELAY
+					); // 24 hours
 				}
 			}
 		} catch (error) {
@@ -569,7 +569,6 @@ export class BattleManager {
 	}
 
 	// Thread/channel updating methods removed - now handled by BattleListener
-
 
 	public static endBattle(userId: string): boolean {
 		const session = this.getBattle(userId);
@@ -591,13 +590,11 @@ export class BattleManager {
 		for (const session of this.activeBattles.values()) {
 			sessions.add(session);
 		}
-		
+
 		const totalBattles = sessions.size;
 		const activePlayers = this.activeBattles.size;
-		const averageTurn = totalBattles > 0 
-			? Array.from(sessions).reduce((sum, session) => sum + session.currentTurn, 0) / totalBattles 
-			: 0;
-		
+		const averageTurn = totalBattles > 0 ? Array.from(sessions).reduce((sum, session) => sum + session.currentTurn, 0) / totalBattles : 0;
+
 		return { totalBattles, activePlayers, averageTurn: Math.round(averageTurn) };
 	}
 
@@ -612,27 +609,27 @@ export class BattleManager {
 		session.timeoutCount.set(userId, newTimeoutCount);
 		session.lastActionTime = new Date();
 
-		if (newTimeoutCount >= 3) {
+		if (newTimeoutCount >= BATTLE_CONSTANTS.MAX_TIMEOUTS) {
 			// Auto-forfeit after 3 timeouts
 			const winner = userId === session.player1Id ? 'opponent' : 'user';
 			session.battle.endBattle(winner);
 			this.endBattle(userId);
-			return { 
-				forfeit: true, 
-				message: `You have timed out 3 times and automatically forfeited the battle!` 
+			return {
+				forfeit: true,
+				message: `You have timed out 3 times and automatically forfeited the battle!`
 			};
 		}
 
 		// Force this player to take a "skip" action
 		session.playerActions.set(userId, true);
 		// Don't set a pending action for timeout - it will be skipped
-		
+
 		// Add timeout message to battle log
-		session.battle.addToBattleLog(`${userId === session.player1Id ? 'Player 1' : 'Player 2'} timed out and skipped their turn!`);
-		
+		session.battle.addToBattleLog(`${userId === session.player1Id ? session.player1DisplayName : session.player2DisplayName} timed out and skipped their turn!`);
+
 		// Check if both players have now acted (one timed out, other may have acted)
 		const bothPlayersActed = session.playerActions.get(session.player1Id) && session.playerActions.get(session.player2Id);
-		
+
 		if (bothPlayersActed) {
 			// Process the turn (this will handle action execution and turn advancement)
 			const turnResult = await this.processTurn(session);
@@ -641,15 +638,15 @@ export class BattleManager {
 			}
 		}
 
-		return { 
-			forfeit: false, 
-			message: `⏰ Turn timed out! (${newTimeoutCount}/3 timeouts)` 
+		return {
+			forfeit: false,
+			message: `⏰ Turn timed out! (${newTimeoutCount}/3 timeouts)`
 		};
 	}
 
 	public static cleanupOldBattles(): void {
 		const now = new Date();
-		const maxAge = 30 * 60 * 1000; // 30 minutes
+		const maxAge = BATTLE_CONSTANTS.OLD_BATTLE_MAX_AGE;
 		const processedSessions = new Set<string>();
 
 		for (const [, session] of this.activeBattles.entries()) {
@@ -657,14 +654,14 @@ export class BattleManager {
 			if (processedSessions.has(session.id)) {
 				continue;
 			}
-			
+
 			if (now.getTime() - session.createdAt.getTime() > maxAge) {
 				// Clean up both players' entries for this session
 				this.activeBattles.delete(session.player1Id);
 				this.activeBattles.delete(session.player2Id);
 				console.log(`Cleaned up expired battle: ${session.id}`);
 			}
-			
+
 			processedSessions.add(session.id);
 		}
 	}
@@ -675,7 +672,7 @@ export class BattleManager {
 			() => {
 				this.cleanupOldBattles();
 			},
-			5 * 60 * 1000
+			BATTLE_CONSTANTS.CLEANUP_INTERVAL
 		);
 	}
 }

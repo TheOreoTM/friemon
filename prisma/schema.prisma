@@ -42,11 +42,9 @@ model UserCharacter {
   currentXP     Int     @default(0)
   nickname      String? // Optional custom name
 
-  // Current battle stats (derived from base stats + level + bonuses)
-  currentHP   Int
-  maxHP       Int
-  currentMana Int
-  maxMana     Int
+  // Base character stats (derived from base stats + level + bonuses)
+  maxHP   Int
+  maxMana Int
 
   // Individual Values (for stat variation between same characters)
   hpIv      Int   @default(0)

@@ -5,6 +5,7 @@ import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race, CombatCondition } from '../types/enums';
 import { ZOLTRAAK, ANALYSIS, VOLLZANBEL, MANA_SHIELD, GRAUSAMKEIT, DETECT_MAGIC } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 // Frieren-specific character interface with additional metadata
 interface FrierenCharacter extends Character {
@@ -37,24 +38,24 @@ const frierenAbility: Ability = {
 		}
 	],
 
-	abilityEndOfTurnEffect: (character: Character, battle: any) => {
+	abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
 		const frierenChar = character as FrierenCharacter;
 		// Gain 1 analysis stack at end of turn (max 10)
 		const currentStacks = frierenChar.analysisStacks || 0;
 		if (currentStacks < 10) {
 			frierenChar.analysisStacks = currentStacks + 1;
-			battle.logMessage(`${character.name} gains 1 Analysis stack (total: ${frierenChar.analysisStacks})`);
+			battle.addToBattleLog(`${character.name} gains 1 Analysis stack (total: ${frierenChar.analysisStacks})`);
 		}
 	},
 
-	abilityAfterOwnTechniqueUse: (character: Character, battle: any, technique: Technique) => {
+	abilityAfterOwnTechniqueUse: (character: Character, battle: Battle, technique: Technique) => {
 		const frierenChar = character as FrierenCharacter;
 		// Analysis techniques give extra stacks
 		if (technique.name === 'Analysis' || technique.name === 'Detect Magic') {
 			const currentStacks = frierenChar.analysisStacks || 0;
 			const newStacks = Math.min(10, currentStacks + 2);
 			frierenChar.analysisStacks = newStacks;
-			battle.logMessage(`${character.name} gains 2 Analysis stacks from ${technique.name} (total: ${newStacks})`);
+			battle.addToBattleLog(`${character.name} gains 2 Analysis stacks from ${technique.name} (total: ${newStacks})`);
 		}
 	},
 

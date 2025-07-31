@@ -51,7 +51,6 @@ export class BattleCollector {
 
 	// Removed: Move selection now handled by BattleListener
 
-
 	private static async handleTimeout(message: Message, userId: string): Promise<void> {
 		const timeoutResult = await BattleManager.handleTimeout(userId);
 
@@ -61,7 +60,7 @@ export class BattleCollector {
 				.setTitle('💀 Battle Forfeited!')
 				.setColor(0xe74c3c)
 				.setDescription(timeoutResult.message)
-				.setFooter({ text: 'Use /battle ai to start a new battle!' });
+				.setFooter({ text: 'Use /battle to start a new battle!' });
 
 			await message.edit({
 				content: '⏰ **TIMEOUT**',
@@ -141,7 +140,7 @@ export class BattleCollector {
 			}
 
 			// Start a player vs player battle
-			const session = BattleManager.createPlayerBattle(challengerId, responderId);
+			const session = await BattleManager.createPlayerBattle(challengerId, responderId, interaction.guild!);
 
 			// Create battle threads
 			const threadResult = await BattleManager.createBattleThreads(session, interaction.guild!);

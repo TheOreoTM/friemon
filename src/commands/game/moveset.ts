@@ -3,6 +3,8 @@ import { Command } from '@sapphire/framework';
 import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType } from 'discord.js';
 import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 import { getCharacterTier } from '../../lib/data/Characters';
+import { CharacterData } from '../../lib/character/CharacterData';
+import { Technique } from '../../lib/character/Technique';
 
 @ApplyOptions<Command.Options>({
     description: 'View character movesets using an interactive menu',
@@ -161,7 +163,7 @@ export class MovesetCommand extends Command {
         });
     }
 
-    private createCharacterEmbed(character: any) {
+    private createCharacterEmbed(character: CharacterData) {
         const displayInfo = character.getDisplayInfo();
         const tier = getCharacterTier(displayInfo.name);
         const tierColor = this.getTierColor(tier);
@@ -207,7 +209,7 @@ export class MovesetCommand extends Command {
         // Sub-abilities if they exist
         if (displayInfo.subAbilities && displayInfo.subAbilities.length > 0) {
             const subAbilityText = displayInfo.subAbilities
-                .map((sub: any) => `• **${sub.name}:** ${sub.description}`)
+                .map((sub: { name: string; description: string }) => `• **${sub.name}:** ${sub.description}`)
                 .join('\n');
             
             embed.addFields({
@@ -248,8 +250,8 @@ export class MovesetCommand extends Command {
         return embed;
     }
 
-    private groupTechniquesByCategory(techniques: any[]) {
-        const groups: { [key: string]: any[] } = {};
+    private groupTechniquesByCategory(techniques: Technique[]) {
+        const groups: { [key: string]: Technique[] } = {};
         
         techniques.forEach(tech => {
             const category = tech.category || 'Other';

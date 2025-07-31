@@ -31,7 +31,6 @@ export class Character {
 	techniques: Technique[];
 	currentHP: number;
 	maxHP: number;
-	mana: number;
 	maxMana: number;
 	currentMana: number;
 	conditions: Set<CombatCondition>;
@@ -144,7 +143,6 @@ export class Character {
 		this.maxHP = 0;
 		this.currentHP = 0;
 		this.maxMana = 0;
-		this.mana = 0;
 		this.currentMana = 0;
 
 		this.initialize();
@@ -154,7 +152,6 @@ export class Character {
 		this.maxHP = this.calculateMaxHP();
 		this.currentHP = this.maxHP;
 		this.maxMana = this.calculateMaxMana();
-		this.mana = this.maxMana;
 		this.currentMana = this.maxMana;
 		this.conditions.clear();
 		this.conditionDurations.clear();
@@ -299,15 +296,15 @@ export class Character {
 			amount = Math.max(1, amount - this.equipment.manaCostReduction);
 		}
 
-		if (this.mana >= amount) {
-			this.mana -= amount;
+		if (this.currentMana >= amount) {
+			this.currentMana -= amount;
 			return true;
 		}
 		return false;
 	}
 
 	restoreMana(amount: number): void {
-		this.mana = Math.min(this.maxMana, this.mana + amount);
+		this.currentMana = Math.min(this.maxMana, this.currentMana + amount);
 	}
 
 	isDefeated(): boolean {
@@ -448,9 +445,9 @@ export class Character {
 
 			// Heal HP and Mana proportionally
 			const hpRatio = this.currentHP / oldMaxHP;
-			const manaRatio = this.mana / oldMaxMana;
+			const manaRatio = this.currentMana / oldMaxMana;
 			this.currentHP = Math.floor(this.maxHP * hpRatio);
-			this.mana = Math.floor(this.maxMana * manaRatio);
+			this.currentMana = Math.floor(this.maxMana * manaRatio);
 		}
 
 		return leveled;

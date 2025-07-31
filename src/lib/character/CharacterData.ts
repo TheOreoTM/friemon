@@ -1,11 +1,12 @@
 import { Character } from './Character';
 import { Technique } from './Technique';
-import { Race } from '../types/enums';
+import { Race, CombatCondition } from '../types/enums';
 import { Stats } from '../types/interfaces';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { generateRandomLevel, generateStartingXP } from '../util/levelGeneration';
 import { LEVEL_CONSTANTS } from '../util/constants';
+import type { Battle } from '../battle/Battle';
 
 // ============== COSMETIC & DISPLAY ==============
 
@@ -22,19 +23,19 @@ export interface Ability {
 	abilityEffectString: string;
 
 	// Battle event hooks
-	abilityStartOfTurnEffect?: (character: Character, battle: any) => void;
-	abilityEndOfTurnEffect?: (character: Character, battle: any) => void;
-	abilityAfterOwnTechniqueUse?: (character: Character, battle: any, technique: Technique) => void;
-	abilityAfterOpponentTechniqueUse?: (character: Character, battle: any, technique: Technique) => void;
-	abilityOnDamageReceived?: (character: Character, battle: any, damage: number) => void;
-	abilityOnDamageDealt?: (character: Character, battle: any, damage: number) => void;
+	abilityStartOfTurnEffect?: (character: Character, battle: Battle) => void;
+	abilityEndOfTurnEffect?: (character: Character, battle: Battle) => void;
+	abilityAfterOwnTechniqueUse?: (character: Character, battle: Battle, technique: Technique) => void;
+	abilityAfterOpponentTechniqueUse?: (character: Character, battle: Battle, technique: Technique) => void;
+	abilityOnDamageReceived?: (character: Character, battle: Battle, damage: number) => void;
+	abilityOnDamageDealt?: (character: Character, battle: Battle, damage: number) => void;
 
 	// Damage modifiers
 	damageOutputMultiplier?: (user: Character, target: Character, technique: Technique) => number;
 	damageInputMultiplier?: (user: Character, target: Character, technique: Technique) => number;
 
 	// Condition effects
-	preventCondition?: (character: Character, condition: any) => boolean;
+	preventCondition?: (character: Character, condition: CombatCondition) => boolean;
 
 	// Sub-abilities for complex characters
 	subAbilities?: Array<{
@@ -166,7 +167,6 @@ export class CharacterData {
 			currentHP: this.baseStats.hp,
 			maxMana: Math.floor(this.baseStats.hp * 0.6),
 			currentMana: Math.floor(this.baseStats.hp * 0.6),
-			mana: Math.floor(this.baseStats.hp * 0.6),
 			baseStats: { ...this.baseStats },
 			techniques: [...this.techniques],
 			disposition: {
@@ -218,7 +218,6 @@ export class CharacterData {
 			currentHP: this.baseStats.hp,
 			maxMana: Math.floor(this.baseStats.hp * 0.6),
 			currentMana: Math.floor(this.baseStats.hp * 0.6),
-			mana: Math.floor(this.baseStats.hp * 0.6),
 			baseStats: { ...this.baseStats },
 			techniques: [...this.techniques],
 			disposition: {

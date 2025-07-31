@@ -53,7 +53,7 @@ export class Technique {
 		if (user.volatileEffects.magicSeal && this.category === TechniqueCategory.Magical) {
 			return false;
 		}
-		return user.mana >= this.manaCost;
+		return user.currentMana >= this.manaCost;
 	}
 
 	getEffectivePower(user: Character, target: Character): number {

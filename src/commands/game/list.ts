@@ -58,7 +58,7 @@ export class ListCommand extends Command {
 						name: `${index + 1}. ${displayInfo.emoji} ${userChar.nickname || displayInfo.name}`,
 						value: [
 							`**Level:** ${userChar.level} | **XP:** ${userChar.currentXP}`,
-							`**HP:** ${userChar.currentHP}/${userChar.maxHP} | **Mana:** ${userChar.currentMana}/${userChar.maxMana}`,
+							`**Max HP:** ${userChar.maxHP} | **Max Mana:** ${userChar.maxMana}`,
 							`**Total IV:** ${userChar.totalIV}/186 (${userChar.ivPercent.toFixed(1)}%)`,
 							`**IV Spread:** ${ivSummary}`,
 							`**Tier:** ${tier} | **From:** ${userChar.obtainedFrom || 'Unknown'}`

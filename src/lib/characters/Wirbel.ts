@@ -8,6 +8,7 @@ import {
     DEFENSIVE_MAGIC,
     MANA_SHIELD
 } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 // Wirbel-specific interface that extends Character with additional metadata
 interface WirbelCharacter extends Character {
@@ -28,13 +29,13 @@ const wirbelAbility: Ability = {
     abilityName: "Resolve to Kill",
     abilityEffectString: `When opponent attacks while you have barriers active, increase attack by 20% of damage received, up to 20% of barrier strength.`,
     
-    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
+    abilityOnDamageReceived: (character: Character, battle: Battle, damage: number) => {
         const wirbelChar = character as WirbelCharacter;
         const barrierStrength = wirbelChar.barrierStrength || 0;
         if (barrierStrength > 0) {
             const attackGain = Math.min(damage * 0.2, barrierStrength * 0.2);
             character.modifyStatBoost('attack', Math.floor(attackGain));
-            battle.logMessage(`${character.name} steels his resolve and gains ${Math.floor(attackGain)} attack!`);
+            battle.addToBattleLog(`${character.name} steels his resolve and gains ${Math.floor(attackGain)} attack!`);
         }
     }
 };

@@ -119,9 +119,7 @@ export class StartCommand extends Command {
 					characterName: selectedCharacter.characterName,
 					level: 1,
 					currentXP: 0,
-					currentHP: selectedCharacter.baseStats.hp,
 					maxHP: selectedCharacter.baseStats.hp,
-					currentMana: Math.floor(selectedCharacter.baseStats.hp * 0.6),
 					maxMana: Math.floor(selectedCharacter.baseStats.hp * 0.6),
 					hpIv: hpIv,
 					atkIv: atkIv,
@@ -175,7 +173,7 @@ export class StartCommand extends Command {
 						name: '💡 Next Steps',
 						value: [
 							'• Use `/character` to view your character details',
-							'• Use `/battle` to start battling with AI opponents',
+							'• Use `/battle` to start battling with opponents',
 							'• Use `/me` to check your profile and stats',
 							'• Collect more characters as you play!'
 						].join('\n'),

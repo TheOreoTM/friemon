@@ -9,6 +9,7 @@ import {
     HOLY_STRIKE,
     DEFENSIVE_MAGIC
 } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 const seinStats = {
     hp: 80,
@@ -23,14 +24,14 @@ const seinAbility: Ability = {
     abilityName: "Goddess' Blessing",
     abilityEffectString: `Heal for 2HP + 2 * (Turn Count * 10%) at the end of every turn. This character can be healed past their max HP.`,
     
-    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
         const baseHealing = 2;
         const turnBonus = 2 * (battle.state.turn * 0.1);
         const totalHealing = Math.floor(baseHealing + turnBonus);
         
         // Using currentHP property from Character class
         character.currentHP = character.currentHP + totalHealing;
-        battle.logMessage(`${character.name} receives the Goddess' Blessing and heals ${totalHealing} HP!`);
+        battle.addToBattleLog(`${character.name} receives the Goddess' Blessing and heals ${totalHealing} HP!`);
     }
 };
 

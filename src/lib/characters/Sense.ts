@@ -8,6 +8,7 @@ import {
     DEFENSIVE_MAGIC,
     BINDING_SPELL
 } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 // Sense-specific interface that extends Character with additional metadata
 interface SenseCharacter extends Character {
@@ -27,18 +28,18 @@ const senseAbility: Ability = {
     abilityName: "Proctor",
     abilityEffectString: `Every turn this character doesn't attack, gain 1 observation. Every turn attacking loses 1 observation. Win when reaching 15 observations.`,
     
-    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
         const senseChar = character as SenseCharacter;
         if ((character as any).attackedThisTurn) {
             senseChar.observations = Math.max(0, (senseChar.observations || 0) - 1);
-            battle.logMessage(`${character.name} went on the offensive!`);
+            battle.addToBattleLog(`${character.name} went on the offensive!`);
         } else {
             senseChar.observations = (senseChar.observations || 0) + 1;
-            battle.logMessage(`${character.name} continues to observe peacefully. (${senseChar.observations}/15)`);
+            battle.addToBattleLog(`${character.name} continues to observe peacefully. (${senseChar.observations}/15)`);
             
             if (senseChar.observations >= 15) {
-                battle.logMessage(`${character.name} has finished proctoring the test. The examinee did not pass in time.`);
-                battle.endBattle('proctor_victory');
+                battle.addToBattleLog(`${character.name} has finished proctoring the test. The examinee did not pass in time.`);
+                battle.endBattle('opponent');
             }
         }
     }

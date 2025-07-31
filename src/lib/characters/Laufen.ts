@@ -7,6 +7,7 @@ import {
     SPEED_BOOST,
     ZOLTRAAK
 } from '../techniques/SharedTechniques';
+import type { Battle } from '../battle/Battle';
 
 const laufenStats = {
     hp: 65,
@@ -21,14 +22,17 @@ const laufenAbility: Ability = {
     abilityName: "Graze",
     abilityEffectString: `Reduce opponent's attack damage by speed difference percentage. High speed allows dodging attacks.`,
     
-    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
-        const opponentSpeed = battle.getOpponent(character).getEffectiveStats().speed;
+    abilityOnDamageReceived: (character: Character, battle: Battle, damage: number) => {
+        // Determine opponent based on whether this character is user or opponent
+        const isUserCharacter = character === battle.state.userCharacter;
+        const opponent = isUserCharacter ? battle.state.opponentCharacter : battle.state.userCharacter;
+        const opponentSpeed = opponent.getEffectiveStats().speed;
         const speedDiff = character.getEffectiveStats().speed - opponentSpeed;
         const grazeReduction = Math.min(Math.max(speedDiff / 100, 0), 0.8);
         
         const reducedDamage = Math.floor(damage * (1 - grazeReduction));
         if (grazeReduction > 0) {
-            battle.logMessage(`${character.name} grazes the attack with superior speed!`);
+            battle.addToBattleLog(`${character.name} grazes the attack with superior speed!`);
         }
         return reducedDamage;
     }

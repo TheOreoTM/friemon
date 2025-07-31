@@ -11,6 +11,7 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
+import type { Battle } from '../battle/Battle';
 
 // Stark-specific interface that extends Character with additional metadata
 interface StarkCharacter extends Character {
@@ -74,7 +75,7 @@ const starkAbility: Ability = {
         }
     ],
 
-    abilityAfterOwnTechniqueUse: (character: Character, _battle: any, technique: Technique) => {
+    abilityAfterOwnTechniqueUse: (character: Character, _battle: Battle, technique: Technique) => {
         const starkChar = character as StarkCharacter;
         // Some techniques modify resolve
         if (technique.name === 'Resolve Strike') {

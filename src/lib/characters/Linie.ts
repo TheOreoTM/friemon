@@ -9,6 +9,7 @@ import {
     LIFE_DRAIN
 } from '../techniques/SharedTechniques';
 import { Technique } from '../character/Technique';
+import type { Battle } from '../battle/Battle';
 
 // Linie-specific interface that extends Character with additional metadata
 interface LinieCharacter extends Character {
@@ -28,14 +29,14 @@ const linieAbility: Ability = {
     abilityName: "Chain Attack",
     abilityEffectString: `After using an attack, gain 1 Chain stack. All attacks deal 10% more damage per Chain stack. When not attacking in a turn, reset Chain to 0.`,
     
-    abilityEndOfTurnEffect: (character: Character, battle: any) => {
+    abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
         const linieChar = character as LinieCharacter;
         if ((character as any).attackedThisTurn) {
             linieChar.chainStacks = (linieChar.chainStacks || 0) + 1;
-            battle.logMessage(`${character.name} continues her chain attack! (${linieChar.chainStacks} stacks)`);
+            battle.addToBattleLog(`${character.name} continues her chain attack! (${linieChar.chainStacks} stacks)`);
         } else {
             if (linieChar.chainStacks > 0) {
-                battle.logMessage(`${character.name} ended her chain.`);
+                battle.addToBattleLog(`${character.name} ended her chain.`);
             }
             linieChar.chainStacks = 0;
         }

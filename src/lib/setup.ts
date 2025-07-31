@@ -6,17 +6,13 @@ import '@sapphire/plugin-api/register';
 import '@sapphire/plugin-editable-commands/register';
 import '@sapphire/plugin-logger/register';
 import '@sapphire/plugin-subcommands/register';
-import { setup } from '@skyra/env-utilities';
 import * as colorette from 'colorette';
-import { join } from 'path';
 import { inspect } from 'util';
-import { ROOT_DIR } from './util/constants';
+// Import constants to trigger env loading
+import './util/constants';
 
 // Set default behavior to bulk overwrite
 ApplicationCommandRegistries.setDefaultBehaviorWhenNotIdentical(RegisterBehavior.BulkOverwrite);
-
-// Read env var
-setup({ path: join(ROOT_DIR, '.env') });
 
 // Set default inspection depth
 inspect.defaultOptions.depth = 1;

@@ -29,6 +29,7 @@
     "@sapphire/ts-config": "^5.0.1",
     "@types/node": "^22.10.7",
     "@types/ws": "^8.5.13",
+    "nodemon": "^3.0.2",
     "npm-run-all2": "^7.0.2",
     "prettier": "^3.4.2",
     "prisma": "^6.5.0",
@@ -43,12 +44,26 @@
     "prepare": "ts-patch install -s",
     "sapphire": "sapphire",
     "generate": "sapphire generate",
+    
     "build": "npx tspc",
-    "watch": "npx tspc -w",
+    "build:watch": "npx tspc -w",
+    "clean": "rm -rf dist",
+    "rebuild": "run-s clean build",
+    
     "start": "node dist/index.js",
-    "dev": "run-s build start",
-    "watch:start": "tsc-watch --onSuccess \"node ./dist/index.js\"",
-    "format": "prettier --write \"src/**/*.ts\""
+    "start:prod": "NODE_ENV=production node dist/index.js",
+    
+    "dev": "tsc-watch --onSuccess \"node ./dist/index.js\"",
+    "dev:debug": "tsc-watch --onSuccess \"node --inspect ./dist/index.js\"",
+    "dev:ts": "ts-node --transpile-only src/index.ts",
+    "dev:nodemon": "nodemon --exec \"ts-node --transpile-only src/index.ts\" --ext ts --ignore dist/",
+    
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    
+    "test:build": "run-s clean build start"
   },
   "prettier": "@sapphire/prettier-config"
 }

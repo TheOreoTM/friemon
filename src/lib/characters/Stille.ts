@@ -8,6 +8,7 @@ import {
 } from '../techniques/SharedTechniques';
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory } from '../types/enums';
+import type { Battle } from '../battle/Battle';
 
 const ESCAPE = new Technique({
     name: 'High-Speed Escape',
@@ -35,18 +36,18 @@ const stilleAbility: Ability = {
     abilityName: "High-speed Escape",
     abilityEffectString: `When opponent attacks, roll D100. If result is less than speed difference, ignore the attack and counter with 80% of opponent's attack damage.`,
     
-    abilityOnDamageReceived: (character: Character, battle: any, damage: number) => {
+    abilityOnDamageReceived: (character: Character, battle: Battle, damage: number) => {
         // High speed evasion - simplified without attacker access
         const speedStat = character.getEffectiveStats().speed;
         const roll = Math.floor(Math.random() * 100) + 1;
         
-        battle.logMessage(`Speed: ${speedStat}, Roll: ${roll}`);
+        battle.addToBattleLog(`Speed: ${speedStat}, Roll: ${roll}`);
         
         if (roll < speedStat / 2) { // Evasion based on speed
-            battle.logMessage(`${character.name} evaded the attack with high speed!`);
+            battle.addToBattleLog(`${character.name} evaded the attack with high speed!`);
             return 0; // No damage taken
         } else {
-            battle.logMessage(`${character.name} failed to evade!`);
+            battle.addToBattleLog(`${character.name} failed to evade!`);
             return damage;
         }
     }

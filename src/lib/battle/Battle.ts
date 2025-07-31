@@ -14,12 +14,16 @@ export class Battle {
 	private turnActions: Map<string, { action: string; target?: string }> = new Map();
 	public userTeam: TeamManager;
 	public opponentTeam: TeamManager;
+	private player1DisplayName: string;
+	private player2DisplayName: string;
 
 	constructor(
 		userParty: Character[],
 		opponentParty: Character[],
 		ambientMagic: AmbientMagicCondition = AmbientMagicCondition.None,
-		terrain: TerrainType = TerrainType.Normal
+		terrain: TerrainType = TerrainType.Normal,
+		player1DisplayName: string,
+		player2DisplayName: string
 	) {
 		// Validate parties
 		if (!this.validateParty(userParty)) {
@@ -45,6 +49,8 @@ export class Battle {
 
 		this.userTeam = new TeamManager(userParty, 0);
 		this.opponentTeam = new TeamManager(opponentParty, 0);
+		this.player1DisplayName = player1DisplayName;
+		this.player2DisplayName = player2DisplayName;
 
 		this.initializeBattle();
 	}
@@ -549,8 +555,8 @@ export class Battle {
 
 	public getWinnerName(): string {
 		const winner = this.getWinner();
-		if (winner === 'user') return 'Player 1';
-		if (winner === 'opponent') return 'Player 2';
+		if (winner === 'user') return this.player1DisplayName;
+		if (winner === 'opponent') return this.player2DisplayName;
 		return 'No winner yet';
 	}
 
@@ -564,8 +570,8 @@ export class Battle {
 			`**Battle Summary**\n` +
 			`• Winner: ${winner}\n` +
 			`• Duration: ${turnCount} turns\n` +
-			`• Player 1 Characters Remaining: ${userCharactersLeft}/3\n` +
-			`• Player 2 Characters Remaining: ${opponentCharactersLeft}/3`
+			`• ${this.player1DisplayName} Characters Remaining: ${userCharactersLeft}/3\n` +
+			`• ${this.player2DisplayName} Characters Remaining: ${opponentCharactersLeft}/3`
 		);
 	}
 
@@ -693,7 +699,7 @@ export class Battle {
 			throw new Error('Invalid winner specified');
 		}
 
-		this.logMessage(`Battle ended! Winner: ${winner === 'user' ? 'Player 1' : 'Player 2'}`);
+		this.logMessage(`Battle ended! Winner: ${winner === 'user' ? this.player1DisplayName : this.player2DisplayName}`);
 
 		// Force end the battle by defeating all characters of the losing side
 		if (winner === 'opponent') {
@@ -799,7 +805,7 @@ export class Battle {
 			return true;
 		}
 
-		const playerName = isUser ? 'Player 1' : 'Player 2';
+		const playerName = isUser ? this.player1DisplayName : this.player2DisplayName;
 		this.logMessage(`${playerName} has no more characters able to battle!`);
 		return false;
 	}

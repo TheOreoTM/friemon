@@ -1,6 +1,6 @@
 import { Client, Events, StringSelectMenuInteraction } from 'discord.js';
 import { battleEvents } from '../BattleEventEmitter';
-import { BattleManager } from '../BattleManager';
+import { BattleManager, type BattleSession } from '../BattleManager';
 
 export class DiscordInteractionListener {
 	private client: Client;
@@ -44,7 +44,7 @@ export class DiscordInteractionListener {
 		battleEvents.emitMoveSelected(userId, interaction);
 	}
 
-	private isPlayerInCorrectChannel(interaction: StringSelectMenuInteraction, session: any, userId: string): boolean {
+	private isPlayerInCorrectChannel(interaction: StringSelectMenuInteraction, session: BattleSession, userId: string): boolean {
 		const channelId = interaction.channelId;
 		
 		if (userId === session.player1Id) {

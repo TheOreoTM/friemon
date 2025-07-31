@@ -12,6 +12,7 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
+import type { Battle } from '../battle/Battle';
 
 // Flamme-specific interface that extends Character with additional metadata
 interface FlammeCharacter extends Character {
@@ -59,15 +60,15 @@ const flammeAbility: Ability = {
         }
     ],
 
-    abilityAfterOwnTechniqueUse: (character: Character, battle: any, technique: Technique) => {
+    abilityAfterOwnTechniqueUse: (character: Character, battle: Battle, technique: Technique) => {
         const flammeChar = character as FlammeCharacter;
         if (technique.properties?.theory) {
             flammeChar.theoryCount = (flammeChar.theoryCount || 0) + 1;
-            battle.logMessage(`${character.name} advances magical theory (${flammeChar.theoryCount}/4)`);
+            battle.addToBattleLog(`${character.name} advances magical theory (${flammeChar.theoryCount}/4)`);
             
             if (flammeChar.theoryCount >= 4) {
                 flammeChar.pinnacleUnlocked = true;
-                battle.logMessage(`${character.name} has discovered the Pinnacle of Humanity's Magic!`);
+                battle.addToBattleLog(`${character.name} has discovered the Pinnacle of Humanity's Magic!`);
             }
         }
     },

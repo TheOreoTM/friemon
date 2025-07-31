@@ -13,6 +13,7 @@ import {
 import { Technique } from '../character/Technique';
 import { Affinity, TechniqueCategory, EffectTarget } from '../types/enums';
 import { createStatBoostEffect } from '../character/TechniqueEffect';
+import type { Battle } from '../battle/Battle';
 
 // Himmel's unique technique
 const HEROIC_INSPIRATION = new Technique({
@@ -56,7 +57,7 @@ const himmelAbility: Ability = {
         }
     ],
 
-    abilityStartOfTurnEffect: (character: Character, battle: any) => {
+    abilityStartOfTurnEffect: (character: Character, battle: Battle) => {
         // Hero's presence - gain stats at start of first turn
         if (battle.state.turn === 1) {
             character.modifyStatBoost('attack', 2);
@@ -64,7 +65,7 @@ const himmelAbility: Ability = {
             character.modifyStatBoost('magicAttack', 2);
             character.modifyStatBoost('magicDefense', 2);
             character.modifyStatBoost('speed', 2);
-            battle.logMessage(`${character.name}'s heroic presence strengthens him!`);
+            battle.addToBattleLog(`${character.name}'s heroic presence strengthens him!`);
         }
     },
 

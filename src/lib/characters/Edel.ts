@@ -3,6 +3,7 @@ import { Character } from '../character/Character';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { Race } from '../types/enums';
+import type { Battle } from '../battle/Battle';
 import { ZOLTRAAK, ANALYSIS, MANA_SHIELD } from '../techniques/SharedTechniques';
 
 // Edel-specific character interface with additional metadata
@@ -31,12 +32,12 @@ const edelAbility: Ability = {
 		}
 	],
 
-	abilityStartOfTurnEffect: (character: Character, battle: any) => {
+	abilityStartOfTurnEffect: (character: Character, battle: Battle) => {
 		const edelChar = character as EdelCharacter;
 		const eyeContact = edelChar.eyeContactStacks || 0;
 		if (eyeContact > 0) {
 			edelChar.eyeContactStacks = eyeContact - 1;
-			battle.logMessage(`${character.name} maintains eye contact - moves gain priority!`);
+			battle.addToBattleLog(`${character.name} maintains eye contact - moves gain priority!`);
 		}
 	}
 };

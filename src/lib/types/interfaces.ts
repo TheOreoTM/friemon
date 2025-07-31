@@ -123,3 +123,22 @@ export interface CharacterData {
 	trait?: string;
 	equipment?: string;
 }
+
+// Battle action types to replace magic strings
+export type BattleActionType = 'attack' | 'switch' | 'item' | 'flee' | 'skip';
+
+export interface PlayerAction {
+	action: BattleActionType;
+	target?: string;
+}
+
+export interface BattleValidationResult {
+	valid: boolean;
+	errors: string[];
+}
+
+export interface ActionExecutionResult {
+	success: boolean;
+	message: string;
+	battleComplete?: boolean;
+}
