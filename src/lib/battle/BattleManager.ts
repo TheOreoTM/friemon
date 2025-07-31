@@ -646,7 +646,7 @@ export class BattleManager {
 		}
 	}
 
-	public static async cleanupBattleThreads(sessionId: string, guild: Guild): Promise<void> {
+	public static async cleanupBattleThreads(sessionId: string): Promise<void> {
 		const session = this.getBattle(sessionId);
 		if (!session) return;
 

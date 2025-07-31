@@ -2,7 +2,7 @@ import { BattleSession } from './BattleManager';
 
 export enum MessageTarget {
 	BattleLog = 'battle_log',
-	Player1Thread = 'player1_thread', 
+	Player1Thread = 'player1_thread',
 	Player2Thread = 'player2_thread',
 	All = 'all'
 }
@@ -37,11 +37,8 @@ export class BattleMessageCache {
 	pushStatChange(characterName: string, stat: string, change: number, newValue: number, target: MessageTarget = MessageTarget.BattleLog): void {
 		const emoji = this.getStatEmoji(stat);
 		const changeText = change > 0 ? `**gained** **${change}**` : `*lost* *${Math.abs(change)}*`;
-		
-		this.push(
-			`${characterName} ${changeText} ${emoji} ${stat}! ${characterName}'s new ${stat}: **${newValue}**`,
-			target
-		);
+
+		this.push(`${characterName} ${changeText} ${emoji} ${stat}! ${characterName}'s new ${stat}: **${newValue}**`, target);
 	}
 
 	/**
@@ -58,7 +55,13 @@ export class BattleMessageCache {
 	/**
 	 * Add a damage message
 	 */
-	pushDamage(_attackerName: string, targetName: string, damage: number, remainingHP: number, target: MessageTarget = MessageTarget.BattleLog): void {
+	pushDamage(
+		_attackerName: string,
+		targetName: string,
+		damage: number,
+		remainingHP: number,
+		target: MessageTarget = MessageTarget.BattleLog
+	): void {
 		if (damage > 0) {
 			this.push(`${targetName} takes **${damage}** damage! ${targetName} has **${remainingHP}** HP left!`, target);
 		} else {
@@ -115,7 +118,7 @@ export class BattleMessageCache {
 	 * Get messages for a specific target
 	 */
 	getMessagesForTarget(target: MessageTarget): BattleMessage[] {
-		return this.messages.filter(msg => msg.target === target || msg.target === MessageTarget.All);
+		return this.messages.filter((msg) => msg.target === target || msg.target === MessageTarget.All);
 	}
 
 	/**
@@ -140,14 +143,14 @@ export class BattleMessageCache {
 
 	private getStatEmoji(stat: string): string {
 		const emojiMap: { [key: string]: string } = {
-			'HP': '❤️',
-			'MP': '💙',
-			'Mana': '💙',
-			'Attack': '⚔️',
-			'Defense': '🛡️',
+			HP: '❤️',
+			MP: '💙',
+			Mana: '💙',
+			Attack: '⚔️',
+			Defense: '🛡️',
 			'Magic Attack': '🔮',
 			'Magic Defense': '✨',
-			'Speed': '💨'
+			Speed: '💨'
 		};
 		return emojiMap[stat] || '📊';
 	}

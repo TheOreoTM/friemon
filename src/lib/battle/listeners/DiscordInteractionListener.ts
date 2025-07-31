@@ -175,9 +175,9 @@ export class DiscordInteractionListener {
 		const channelId = interaction.channelId;
 
 		if (userId === session.user.id) {
-			return channelId === session.player1Thread;
+			return channelId === session.player1Thread?.id;
 		} else if (userId === session.opponent.id) {
-			return channelId === session.player2Thread;
+			return channelId === session.player2Thread?.id;
 		}
 
 		return false;

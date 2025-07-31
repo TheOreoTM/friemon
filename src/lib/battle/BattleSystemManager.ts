@@ -30,7 +30,7 @@ export class BattleSystemManager {
 		// Initialize all listeners - we don't need to store references since they set up their own event handlers
 		new DiscordInteractionListener(client);
 		new BattleActionListener();
-		new ChannelUpdateListener(client);
+		new ChannelUpdateListener();
 
 		this.isInitialized = true;
 		container.logger.info('Battle System Manager initialized successfully');

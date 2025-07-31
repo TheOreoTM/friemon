@@ -1,12 +1,9 @@
-import { Guild, Client } from 'discord.js';
+import { Guild } from 'discord.js';
 import { battleEvents } from '../BattleEventEmitter';
 import { BattleManager, BattleSession } from '../BattleManager';
 
 export class ChannelUpdateListener {
-	private client?: Client;
-
-	constructor(client?: Client) {
-		this.client = client;
+	constructor() {
 		this.setupListeners();
 	}
 
@@ -17,19 +14,19 @@ export class ChannelUpdateListener {
 		battleEvents.onActionMessage(this.handleActionMessage.bind(this));
 	}
 
-	private async handleChannelsCreated(session: BattleSession, guild: Guild): Promise<void> {
+	private async handleChannelsCreated(session: BattleSession): Promise<void> {
 		try {
 			// Send initial messages to player channels
-			await this.setupInitialMessages(session, guild);
+			await this.setupInitialMessages(session);
 		} catch (error) {
 			console.error('Error setting up initial channel messages:', error);
 		}
 	}
 
-	private async handleTurnComplete(session: BattleSession, guild: Guild): Promise<void> {
+	private async handleTurnComplete(session: BattleSession): Promise<void> {
 		try {
 			// Send turn results message
-			const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
+			const battleLogChannel = session.battleLogThread!;
 			if (battleLogChannel && battleLogChannel.isTextBased()) {
 				const turnMessage = `**Turn ${session.currentTurn} complete.**`;
 				await battleLogChannel.send(turnMessage);
@@ -41,27 +38,27 @@ export class ChannelUpdateListener {
 			}
 
 			// Send comprehensive team embeds to private threads
-			await this.sendPrivateThreadUpdates(session, guild);
+			await this.sendPrivateThreadUpdates(session);
 
 			// Send new move selection messages for next turn (if battle not complete)
 			if (!session.battle.isComplete()) {
-				await this.sendNextTurnMessages(session, guild);
+				await this.sendNextTurnMessages(session);
 			}
 		} catch (error) {
 			console.error('Error updating channels after turn completion:', error);
 		}
 	}
 
-	private async handleBattleCompleted(session: BattleSession, guild: Guild): Promise<void> {
+	private async handleBattleCompleted(session: BattleSession): Promise<void> {
 		try {
 			// Update battle log channel with final result
-			await this.updateBattleLogChannel(session, guild);
+			await this.updateBattleLogChannel(session);
 
 			// Send completion messages to player channels
-			await this.sendCompletionMessages(session, guild);
+			await this.sendCompletionMessages(session);
 
 			// Clean up battle threads (archive private threads, lock main thread)
-			await BattleManager.cleanupBattleThreads(session.id, guild);
+			await BattleManager.cleanupBattleThreads(session.id);
 		} catch (error) {
 			console.error('Error updating channels after battle completion:', error);
 		}
@@ -84,7 +81,7 @@ export class ChannelUpdateListener {
 			}
 
 			// Send message to battle log channel
-			const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
+			const battleLogChannel = session.battleLogThread!;
 			if (battleLogChannel && battleLogChannel.isTextBased()) {
 				await battleLogChannel.send(message);
 			}
@@ -97,13 +94,13 @@ export class ChannelUpdateListener {
 		try {
 			// Try to get guild from any available channel
 			if (session.battleLogThread) {
-				const channel = await this.client?.channels.fetch(session.battleLogThread);
+				const channel = session.battleLogThread;
 				if (channel && 'guild' in channel) {
 					return channel.guild;
 				}
 			}
 			if (session.player1Thread) {
-				const channel = await this.client?.channels.fetch(session.player1Thread);
+				const channel = session.player1Thread;
 				if (channel && 'guild' in channel) {
 					return channel.guild;
 				}
@@ -115,9 +112,9 @@ export class ChannelUpdateListener {
 		}
 	}
 
-	private async sendPrivateThreadUpdates(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1Thread!);
-		const player2Channel = guild.channels.cache.get(session.player2Thread!);
+	private async sendPrivateThreadUpdates(session: BattleSession): Promise<void> {
+		const player1Channel = session.player1Thread!;
+		const player2Channel = session.player2Thread!;
 
 		if (player1Channel && player1Channel.isTextBased()) {
 			const player1TeamEmbed = session.interface.createPlayerCharacterStatsEmbed(session.user.id, session);
@@ -136,10 +133,10 @@ export class ChannelUpdateListener {
 		}
 	}
 
-	private async setupInitialMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1Thread!);
-		const player2Channel = guild.channels.cache.get(session.player2Thread!);
-		const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
+	private async setupInitialMessages(session: BattleSession): Promise<void> {
+		const player1Channel = session.player1Thread!;
+		const player2Channel = session.player2Thread!;
+		const battleLogChannel = session.battleLogThread!;
 
 		if (player1Channel && player1Channel.isTextBased()) {
 			const player1Embed = session.interface.createPlayerMoveEmbed(session.user.id, session);
@@ -173,8 +170,8 @@ export class ChannelUpdateListener {
 		}
 	}
 
-	private async updateBattleLogChannel(session: BattleSession, guild: Guild): Promise<void> {
-		const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
+	private async updateBattleLogChannel(session: BattleSession): Promise<void> {
+		const battleLogChannel = session.battleLogThread!;
 		if (battleLogChannel && battleLogChannel.isTextBased()) {
 			const battleLogEmbed = session.interface.createBattleLogEmbed(session);
 			await battleLogChannel.send({
@@ -183,9 +180,9 @@ export class ChannelUpdateListener {
 		}
 	}
 
-	private async sendNextTurnMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1Thread!);
-		const player2Channel = guild.channels.cache.get(session.player2Thread!);
+	private async sendNextTurnMessages(session: BattleSession): Promise<void> {
+		const player1Channel = session.player1Thread!;
+		const player2Channel = session.player2Thread!;
 
 		if (player1Channel && player1Channel.isTextBased()) {
 			const player1Embed = session.interface.createPlayerMoveEmbed(session.user.id, session);
@@ -212,9 +209,9 @@ export class ChannelUpdateListener {
 		}
 	}
 
-	private async sendCompletionMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1Thread!);
-		const player2Channel = guild.channels.cache.get(session.player2Thread!);
+	private async sendCompletionMessages(session: BattleSession): Promise<void> {
+		const player1Channel = session.player1Thread!;
+		const player2Channel = session.player2Thread!;
 
 		const resultEmbed = session.interface.createBattleResultEmbed(session);
 
