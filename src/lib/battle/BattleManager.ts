@@ -4,8 +4,9 @@ import { Character } from '../character/Character';
 import { CharacterRegistry } from '../characters/CharacterRegistry';
 import { battleEvents } from './BattleEventEmitter';
 import { BattleActionType, PlayerAction, ActionExecutionResult } from '../types/interfaces';
+import { BattleMessageCache, MessageTarget } from './BattleMessageCache';
 import { AmbientMagicCondition, TerrainType } from '../types/enums';
-import { ChannelType, type Guild } from 'discord.js';
+import { ChannelType, type Guild, type Client } from 'discord.js';
 import { GAME_CHANNEL_ID, BATTLE_CONSTANTS } from '../util/constants';
 
 export interface BattleSession {
@@ -112,6 +113,16 @@ export class BattleManager {
 			return null;
 		}
 		return this.activeBattles.get(userId) || null;
+	}
+
+	public static getSessionById(sessionId: string): BattleSession | null {
+		// Find session by ID across all active battles
+		for (const session of this.activeBattles.values()) {
+			if (session.id === sessionId) {
+				return session;
+			}
+		}
+		return null;
 	}
 
 	public static getBattleById(battleId: string): BattleSession | null {
@@ -318,7 +329,8 @@ export class BattleManager {
 				if (action.action === 'skip') {
 					const playerName = playerId === session.player1Id ? session.player1DisplayName : session.player2DisplayName;
 					const character = playerId === session.player1Id ? battle.state.userCharacter : battle.state.opponentCharacter;
-					battle.addToBattleLog(`${character.name} (${playerName}) skipped their turn`);
+					const skipMessage = `${character.name} (${playerName}) skipped their turn`;
+					this.sendActionMessage(session, skipMessage);
 					continue;
 				}
 
@@ -338,7 +350,7 @@ export class BattleManager {
 				}
 			}
 		} else {
-			battle.addToBattleLog('Both players skipped their turn');
+			this.sendActionMessage(session, 'Both players skipped their turn');
 		}
 	}
 
@@ -384,6 +396,105 @@ export class BattleManager {
 		}
 	}
 
+	/**
+	 * Sends an individual action message to the battle log channel
+	 */
+	private static async sendActionMessage(session: BattleSession, message: string): Promise<void> {
+		try {
+			// Try to send directly to the battle log channel using the cached client
+			if (session.battleLogThreadId && BattleManager.clientInstance) {
+				const channel = await BattleManager.clientInstance.channels.fetch(session.battleLogThreadId);
+				if (channel && channel.isTextBased() && 'send' in channel) {
+					await channel.send(message);
+					return;
+				}
+			}
+		} catch (error) {
+			console.error('Error sending action message directly:', error);
+		}
+		
+		// Fallback to event system
+		battleEvents.emitActionMessage(session.id, message);
+	}
+
+	// Store client instance for direct channel access
+	private static clientInstance: Client;
+
+	public static setClient(client: Client): void {
+		this.clientInstance = client;
+	}
+
+	/**
+	 * Default technique execution for techniques without custom onUsed function
+	 */
+	private static executeDefaultTechnique(
+		attacker: Character, 
+		target: Character, 
+		technique: any, 
+		session: BattleSession, 
+		messageCache: BattleMessageCache, 
+		_isPlayer1: boolean
+	): void {
+		const attackerName = session.interface.formatCharacterWithPlayer(attacker, session);
+		const targetName = session.interface.formatCharacterWithPlayer(target, session);
+
+		// Basic technique use message
+		messageCache.pushTechniqueUse(attackerName, technique.name, targetName);
+
+		// Consume mana
+		if (technique.manaCost > 0) {
+			attacker.consumeMana(technique.manaCost);
+			messageCache.pushManaChange(attackerName, -technique.manaCost, attacker.currentMana);
+		}
+
+		// Handle different technique types
+		if (technique.category === 'Support' && technique.name.toLowerCase().includes('heal')) {
+			// Healing technique
+			const healingPower = Math.floor(attacker.getEffectiveStats().magicAttack * 0.6);
+			const actualHealing = Math.min(healingPower, target.maxHP - target.currentHP);
+			
+			if (actualHealing > 0) {
+				target.currentHP += actualHealing;
+				messageCache.pushHealing(targetName, actualHealing, target.currentHP);
+			} else {
+				messageCache.push(`${targetName} is already at full health!`);
+			}
+		} else if (technique.power > 0) {
+			// Damage technique
+			const stats = attacker.getEffectiveStats();
+			const targetStats = target.getEffectiveStats();
+			
+			let damage: number;
+			if (technique.affinity && technique.affinity.includes('Physical')) {
+				damage = Math.max(1, Math.floor(stats.attack - targetStats.defense));
+			} else {
+				damage = Math.max(1, Math.floor(stats.magicAttack - targetStats.magicDefense));
+			}
+
+			// Apply technique power scaling
+			damage = Math.floor(damage * (technique.power / 100));
+			
+			// Apply random variance
+			damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+
+			if (damage > 0) {
+				const oldHP = target.currentHP;
+				target.takeDamage(damage);
+				messageCache.pushDamage(attackerName, targetName, damage, target.currentHP);
+
+				// Check for defeat
+				if (target.currentHP <= 0 && oldHP > 0) {
+					messageCache.push(`💀 **${targetName} is defeated!**`);
+				}
+			} else {
+				messageCache.push(`${targetName} takes no damage!`);
+			}
+		} else {
+			// Support technique with no damage
+			messageCache.push(`✨ **${technique.name} takes effect!**`);
+		}
+	}
+
 	private static executeAction(session: BattleSession, playerId: string, action: PlayerAction): void {
 		const { battle } = session;
 		const isPlayer1 = playerId === session.player1Id;
@@ -406,8 +517,34 @@ export class BattleManager {
 				const targetCharacter = isPlayer1 ? battle.state.opponentCharacter : battle.state.userCharacter;
 				if (!targetCharacter || targetCharacter.isDefeated()) return;
 
-				// Execute technique - all logging happens inside battle.executeTechnique()
-				battle.executeTechnique(currentCharacter, targetCharacter, technique);
+				// Create message cache for this action
+				const messageCache = new BattleMessageCache(session);
+
+				// Execute technique using embedded action function
+				if (technique.onUsed) {
+					// Use custom technique action
+					technique.onUsed({
+						user: currentCharacter,
+						target: targetCharacter,
+						session,
+						messageCache,
+						isPlayer1User: isPlayer1,
+						userTeam: isPlayer1 ? battle.getUserCharacters() : battle.getOpponentCharacters(),
+						opponentTeam: isPlayer1 ? battle.getOpponentCharacters() : battle.getUserCharacters()
+					});
+				} else {
+					// Fallback to default technique execution
+					this.executeDefaultTechnique(currentCharacter, targetCharacter, technique, session, messageCache, isPlayer1);
+				}
+
+				// Send all cached messages
+				const messages = messageCache.flush();
+				for (const message of messages) {
+					if (message.target === MessageTarget.BattleLog || message.target === MessageTarget.All) {
+						this.sendActionMessage(session, message.content);
+					}
+					// TODO: Handle other message targets (player threads) if needed
+				}
 				break;
 
 			case 'switch':
@@ -421,7 +558,13 @@ export class BattleManager {
 				}
 
 				const switchIndex = party.findIndex((char) => char === switchTarget);
-				// Switch character - all logging happens inside battle.switchCharacter()
+				
+				// Generate switch message
+				const playerDisplayName = isPlayer1 ? session.player1DisplayName : session.player2DisplayName;
+				const switchMessage = `${playerDisplayName} switches to ${switchTarget.name}!`;
+				this.sendActionMessage(session, switchMessage);
+
+				// Switch character
 				battle.switchCharacter(isPlayer1, switchIndex);
 				break;
 

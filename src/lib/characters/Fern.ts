@@ -20,7 +20,53 @@ const QUICK_ZOLTRAAK = new Technique({
 	manaCost: 12,
 	initiative: 1,
 	effects: [],
-	properties: { magicBased: true, rapid: true }
+	properties: { magicBased: true, rapid: true },
+	onUsed: ({ user, target, messageCache, session }) => {
+		const userName = session.interface.formatCharacterWithPlayer(user, session);
+		const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+
+		// Dramatic technique sequence
+		messageCache.push(`⚡ **${userName} raises her hand with practiced precision!**`);
+		messageCache.push(`🔥 Magical energy crackles as she prepares to cast!`);
+
+		// Consume mana
+		user.consumeMana(12);
+		messageCache.pushManaChange(userName, -12, user.currentMana);
+
+		// Calculate enhanced damage (rapid technique bonus)
+		const stats = user.getEffectiveStats();
+		const targetStats = target!.getEffectiveStats();
+		let damage = Math.floor(stats.magicAttack - targetStats.magicDefense);
+		
+		// Rapid technique bonus (20% extra damage from ability)
+		damage = Math.floor(damage * 1.2);
+		
+		// Apply technique power
+		damage = Math.floor(damage * 0.65);
+		
+		// Add variance
+		damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+		damage = Math.max(1, damage);
+
+		// Apply damage with dramatic description
+		const oldHP = target!.currentHP;
+		target!.takeDamage(damage);
+		
+		messageCache.push(`⚡ **"Zoltraak!" ${userName} unleashes rapid magical projectiles!**`);
+		messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+
+		// Check for defeat
+		if (target!.currentHP <= 0 && oldHP > 0) {
+			messageCache.push(`💀 **${targetName} falls to Fern's precise magical assault!**`);
+		}
+
+		// Prodigious Talent - chance to recover mana
+		if (Math.random() < 0.3) {
+			const manaRecovered = Math.floor(user.maxMana * 0.08);
+			user.restoreMana(manaRecovered);
+			messageCache.push(`✨ **Fern's Prodigious Talent**: Her natural magical control recovers ${manaRecovered} MP!`);
+		}
+	}
 });
 
 const MANA_CONTROL = new Technique({
@@ -33,7 +79,35 @@ const MANA_CONTROL = new Technique({
 	manaCost: 8,
 	initiative: 0,
 	effects: [createStatBoostEffect('magicAttack', 1, 1.0, EffectTarget.Self)],
-	properties: { magicBased: true }
+	properties: { magicBased: true },
+	onUsed: ({ user, messageCache, session }) => {
+		const userName = session.interface.formatCharacterWithPlayer(user, session);
+
+		// Support technique sequence
+		messageCache.push(`🌟 **${userName} closes her eyes, focusing deeply on her magical flow!**`);
+		messageCache.push(`💫 Mana streams become visible around her as she refines her control!`);
+
+		// Consume mana
+		user.consumeMana(8);
+		messageCache.pushManaChange(userName, -8, user.currentMana);
+
+		// Restore more mana than consumed (net positive)
+		const manaRestored = Math.floor(user.maxMana * 0.15); // 15% of max mana
+		user.restoreMana(manaRestored);
+		messageCache.push(`💙 **${userName}'s precise control channels ambient mana!**`);
+		messageCache.pushManaChange(userName, manaRestored, user.currentMana);
+
+		// Boost magic attack temporarily (this would need a stat boost system)
+		messageCache.push(`✨ **${userName}'s magical precision increases significantly!**`);
+		messageCache.push(`🔮 **${userName}'s next magical techniques will be more powerful!**`);
+
+		// Prodigious Talent passive check
+		if (Math.random() < 0.4) { // Higher chance for support spells
+			const bonusMana = Math.floor(user.maxMana * 0.05);
+			user.restoreMana(bonusMana);
+			messageCache.push(`✨ **Fern's Prodigious Talent**: Her natural efficiency grants ${bonusMana} bonus MP!`);
+		}
+	}
 });
 
 const fernStats = {

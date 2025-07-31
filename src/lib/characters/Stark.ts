@@ -32,7 +32,27 @@ const RESOLVE_STRIKE = new Technique({
     effects: [
         createStatBoostEffect('attack', 1, 1.0, EffectTarget.Self)
     ],
-    properties: { weaponBased: true, physical: true }
+    properties: { weaponBased: true, physical: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`💪 **${userName} steels their resolve and strikes!**`);
+        user.consumeMana(15);
+        messageCache.pushManaChange(userName, -15, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.attack - targetStats.defense) * 0.8);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`⚔️ **${userName} strikes with growing determination!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        messageCache.push(`✨ **${userName}'s resolve strengthens their future attacks!**`);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} falls to ${userName}'s resolute strike!**`);
+        }
+    }
 });
 
 const COWARD_FLEE = new Technique({
@@ -48,7 +68,15 @@ const COWARD_FLEE = new Technique({
         createStatBoostEffect('speed', 2, 1.0, EffectTarget.Self),
         createStatBoostEffect('attack', -1, 1.0, EffectTarget.Self)
     ],
-    properties: { movement: true }
+    properties: { movement: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`🏃 **${userName} considers the situation carefully!**`);
+        user.consumeMana(5);
+        messageCache.pushManaChange(userName, -5, user.currentMana);
+        messageCache.push(`💨 **${userName} gains speed through tactical positioning!**`);
+        messageCache.push(`😅 **Though ${userName} feels less confident in attack..."**);
+    }
 });
 
 const starkStats = {

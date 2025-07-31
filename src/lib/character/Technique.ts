@@ -3,6 +3,7 @@ import { TechniqueEffect } from './TechniqueEffect';
 import { TechniqueProperty, TargetType } from '../types/types';
 import { Character } from './Character';
 import { Battle } from '../battle/Battle';
+import { TechniqueContext } from './TechniqueContext';
 
 export class Technique {
 	name: string;
@@ -18,6 +19,7 @@ export class Technique {
 	multiTargetCount?: number; // How many targets for multiTarget techniques (default 2)
 	description: string;
 	execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
+	onUsed?: (context: TechniqueContext) => void;
 
 	constructor(data: {
 		name: string;
@@ -33,6 +35,7 @@ export class Technique {
 		multiTargetCount?: number;
 		description: string;
 		execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
+		onUsed?: (context: TechniqueContext) => void;
 	}) {
 		this.name = data.name;
 		this.affinity = data.affinity;
@@ -47,6 +50,7 @@ export class Technique {
 		this.multiTargetCount = data.multiTargetCount || 2;
 		this.description = data.description;
 		this.execute = data.execute;
+		this.onUsed = data.onUsed;
 	}
 
 	canUse(user: Character): boolean {

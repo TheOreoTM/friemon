@@ -20,7 +20,15 @@ const ESCAPE = new Technique({
     manaCost: 10,
     initiative: 3,
     effects: [],
-    properties: { evasion: true }
+    properties: { evasion: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`🏃 **${userName} moves with lightning speed!**`);
+        user.consumeMana(10);
+        messageCache.pushManaChange(userName, -10, user.currentMana);
+        messageCache.push(`💨 **${userName} becomes nearly impossible to target!**`);
+        messageCache.push(`⚡ **${userName} prepares to evade incoming attacks!**`);
+    }
 });
 
 const stilleStats = {

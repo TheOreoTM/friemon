@@ -9,6 +9,7 @@ export interface BattleEvents {
 	'battle:completed': (session: BattleSession, guild: Guild) => void;
 	'battle:player-timeout': (userId: string, session: BattleSession) => void;
 	'battle:channels-created': (session: BattleSession, guild: Guild) => void;
+	'battle:action-message': (sessionId: string, message: string) => void;
 }
 
 export class BattleEventEmitter extends EventEmitter {
@@ -51,6 +52,10 @@ export class BattleEventEmitter extends EventEmitter {
 		this.emit('battle:channels-created', session, guild);
 	}
 
+	public emitActionMessage(sessionId: string, message: string): void {
+		this.emit('battle:action-message', sessionId, message);
+	}
+
 	// Type-safe event listener methods
 	public onBattleCreated(listener: (session: BattleSession, guild: Guild) => void): void {
 		this.on('battle:created', listener);
@@ -74,6 +79,10 @@ export class BattleEventEmitter extends EventEmitter {
 
 	public onChannelsCreated(listener: (session: BattleSession, guild: Guild) => void): void {
 		this.on('battle:channels-created', listener);
+	}
+
+	public onActionMessage(listener: (sessionId: string, message: string) => void): void {
+		this.on('battle:action-message', listener);
 	}
 }
 

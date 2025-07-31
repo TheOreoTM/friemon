@@ -2,6 +2,7 @@ import { Client } from 'discord.js';
 import { DiscordInteractionListener } from './listeners/DiscordInteractionListener';
 import { BattleActionListener } from './listeners/BattleActionListener';
 import { ChannelUpdateListener } from './listeners/ChannelUpdateListener';
+import { BattleManager } from './BattleManager';
 
 export class BattleSystemManager {
 	private static instance: BattleSystemManager;
@@ -26,10 +27,13 @@ export class BattleSystemManager {
 
 		console.log('Initializing Battle System Manager...');
 
+		// Set client instance for BattleManager
+		BattleManager.setClient(client);
+
 		// Initialize all listeners - we don't need to store references since they set up their own event handlers
 		new DiscordInteractionListener(client);
 		new BattleActionListener();
-		new ChannelUpdateListener();
+		new ChannelUpdateListener(client);
 
 		this.isInitialized = true;
 		console.log('Battle System Manager initialized successfully');

@@ -26,7 +26,16 @@ const UNDEAD_ARMY = new Technique({
 	manaCost: 30,
 	initiative: 0,
 	effects: [createStatBoostEffect('attack', 1, 1.0, EffectTarget.Self)],
-	properties: { magicBased: true, darkMagic: true, summoning: true }
+	properties: { magicBased: true, darkMagic: true, summoning: true },
+	onUsed: ({ user, messageCache, session }) => {
+		const userName = session.interface.formatCharacterWithPlayer(user, session);
+		messageCache.push(`🧟 **${userName} raises their staff toward the ground!**`);
+		messageCache.push(`⚰️ Dark magic seeps into the earth, calling forth the dead!`);
+		user.consumeMana(30);
+		messageCache.pushManaChange(userName, -30, user.currentMana);
+		messageCache.push(`💀 **Skeletal warriors rise to serve ${userName}!**`);
+		messageCache.push(`⚔️ **${userName}'s combat effectiveness increases with undead support!**`);
+	}
 });
 
 const SCALES_OF_OBEDIENCE = new Technique({
@@ -39,7 +48,17 @@ const SCALES_OF_OBEDIENCE = new Technique({
 	manaCost: 25,
 	initiative: 1,
 	effects: [createConditionEffect(CombatCondition.Exhausted, 0.9, EffectTarget.Opponent)],
-	properties: { magicBased: true, darkMagic: true, overwhelming: true }
+	properties: { magicBased: true, darkMagic: true, overwhelming: true },
+	onUsed: ({ user, target, messageCache, session }) => {
+		const userName = session.interface.formatCharacterWithPlayer(user, session);
+		const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+		messageCache.push(`⚖️ **${userName} channels overwhelming magical pressure!**`);
+		messageCache.push(`🌀 "Feel the weight of superior mana!" ${userName} declares!`);
+		user.consumeMana(25);
+		messageCache.pushManaChange(userName, -25, user.currentMana);
+		messageCache.push(`💪 **${userName}'s magical dominance overwhelms ${targetName}!**`);
+		messageCache.push(`😫 **${targetName} struggles under the oppressive magical force!**`);
+	}
 });
 
 const auraStats = {

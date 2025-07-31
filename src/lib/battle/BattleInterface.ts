@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { Battle } from './Battle';
 import { Character } from '../character/Character';
 import { Technique } from '../character/Technique';
@@ -122,8 +122,6 @@ export class BattleInterface {
 
 	public createMoveSelectionMenu(isPlayer1?: boolean): ActionRowBuilder<StringSelectMenuBuilder> {
 		const character = isPlayer1 !== false ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
-		const party = isPlayer1 !== false ? this.battle.state.userParty : this.battle.state.opponentParty;
-		const activeIndex = isPlayer1 !== false ? this.battle.state.userActiveIndex : this.battle.state.opponentActiveIndex;
 
 		if (!character) {
 			return new ActionRowBuilder<StringSelectMenuBuilder>();
@@ -184,38 +182,16 @@ export class BattleInterface {
 			});
 		}
 
-		// Add switch options with enhanced info
-		party.forEach((char, index) => {
-			if (index !== activeIndex && !char.isDefeated()) {
-				const hpPercent = Math.round((char.currentHP / char.maxHP) * 100);
-				const mpPercent = Math.round((char.currentMana / char.maxMana) * 100);
-				const conditions = char.getActiveConditions();
-				const statusText = conditions.length > 0 ? ` | ${conditions.join(', ')}` : '';
-
-				options.push({
-					label: `🔄 Switch to ${char.name}`,
-					value: `switch_${char.name}`,
-					description: `Level ${char.level} | ${hpPercent}% HP, ${mpPercent}% MP${statusText}`,
-					emoji: this.getRaceEmoji(char.races[0])
-				});
-			}
-		});
-
-		// Add forfeit option
-		options.push({
-			label: '🏃 Forfeit Battle',
-			value: 'flee',
-			description: 'Surrender and end the battle immediately',
-			emoji: '🏃'
-		});
+		// Switch and forfeit are now handled by dedicated buttons
+		// No additional options needed in the select menu
 
 		// Limit to Discord's max of 25 options
 		const limitedOptions = options.slice(0, 25);
 
-		const placeholderText =
-			options.length > 4
-				? `Choose your action... (${limitedOptions.filter((opt) => !opt.value.startsWith('disabled_')).length} available)`
-				: 'Choose your action...';
+		const availableAttacks = limitedOptions.filter((opt) => !opt.value.startsWith('disabled_')).length;
+		const placeholderText = availableAttacks > 0 
+			? `Choose your technique... (${availableAttacks} available)`
+			: 'No techniques available...';
 
 		const selectMenu = new StringSelectMenuBuilder().setCustomId('battle_move_select').setPlaceholder(placeholderText).addOptions(limitedOptions);
 
@@ -632,5 +608,139 @@ export class BattleInterface {
 			.addOptions(options);
 
 		return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+	}
+
+	/**
+	 * Helper function to format character name with player display name
+	 * @param character The character
+	 * @param session The battle session to get player display names
+	 * @returns Formatted string like "Frieren (Alice)"
+	 */
+	public formatCharacterWithPlayer(character: Character, session: BattleSession): string {
+		const isPlayer1Character = this.battle.getUserCharacters().includes(character);
+		const playerDisplayName = isPlayer1Character ? session.player1DisplayName : session.player2DisplayName;
+		return `${character.name} (${playerDisplayName})`;
+	}
+
+	/**
+	 * Creates team switching buttons for the player
+	 * @param playerId The player's Discord ID
+	 * @param session The battle session
+	 * @returns ActionRowBuilder with team switching buttons
+	 */
+	public createTeamSwitchButtons(playerId: string, session: BattleSession): ActionRowBuilder<ButtonBuilder> {
+		const isPlayer1 = playerId === session.player1Id;
+		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
+		const activeCharacter = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+
+		const buttons = team.map((character, index) => {
+			const position = index + 1;
+			const isActive = character === activeCharacter;
+			const isDead = character.isDefeated();
+			
+			let style: ButtonStyle;
+			let disabled = false;
+			
+			if (isActive) {
+				style = ButtonStyle.Success; // Green
+				disabled = true;
+			} else if (isDead) {
+				style = ButtonStyle.Danger; // Red
+				disabled = true;
+			} else {
+				style = ButtonStyle.Secondary; // Gray
+			}
+
+			return new ButtonBuilder()
+				.setCustomId(`switch_${position}`)
+				.setLabel(`${position}. ${character.name}`)
+				.setStyle(style)
+				.setDisabled(disabled);
+		});
+
+		return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
+	}
+
+	/**
+	 * Creates the forfeit/flee button
+	 * @returns ActionRowBuilder with forfeit button
+	 */
+	public createForfeitButton(): ActionRowBuilder<ButtonBuilder> {
+		const forfeitButton = new ButtonBuilder()
+			.setCustomId('battle_forfeit')
+			.setLabel('Forfeit Battle')
+			.setStyle(ButtonStyle.Danger)
+			.setEmoji('🏳️');
+
+		return new ActionRowBuilder<ButtonBuilder>().addComponents(forfeitButton);
+	}
+
+	/**
+	 * Creates a character stats embed for a specific player's active character
+	 * @param playerId The player's Discord ID
+	 * @param session The battle session
+	 * @returns EmbedBuilder with character stats and team info
+	 */
+	public createPlayerCharacterStatsEmbed(playerId: string, session: BattleSession): EmbedBuilder {
+		const isPlayer1 = playerId === session.player1Id;
+		const playerDisplayName = isPlayer1 ? session.player1DisplayName : session.player2DisplayName;
+		const activeCharacter = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
+
+		const embed = new EmbedBuilder()
+			.setTitle(`⚔️ ${playerDisplayName}'s Active Character`)
+			.setColor(isPlayer1 ? 0x3498db : 0xe74c3c);
+
+		// Active character stats
+		const hpBar = this.createHPBar(activeCharacter);
+		const manaBar = this.createManaBar(activeCharacter);
+		const hpPercent = Math.round((activeCharacter.currentHP / activeCharacter.maxHP) * 100);
+		const manaPercent = Math.round((activeCharacter.currentMana / activeCharacter.maxMana) * 100);
+
+		// Active conditions
+		const conditions = activeCharacter.getActiveConditions();
+		const conditionText = conditions.length > 0 ? `\n🎭 **Conditions:** ${conditions.join(', ')}` : '';
+
+		embed.addFields({
+			name: `👤 ${activeCharacter.name}`,
+			value: [
+				`${hpBar} **${activeCharacter.currentHP}**/**${activeCharacter.maxHP}** HP (${hpPercent}%)`,
+				`${manaBar} **${activeCharacter.currentMana}**/**${activeCharacter.maxMana}** MP (${manaPercent}%)`,
+				`⚡ **Level:** ${activeCharacter.level}${conditionText}`
+			].join('\n'),
+			inline: false
+		});
+
+		// Team overview (inactive members)
+		const inactiveMembers = team.filter(char => char !== activeCharacter);
+		if (inactiveMembers.length > 0) {
+			const teamInfo = inactiveMembers.map((char) => {
+				const position = team.findIndex(teamChar => teamChar === char) + 1;
+				const status = char.isDefeated() ? ' 💀' : '';
+				const conditions = char.getActiveConditions();
+				const conditionSuffix = conditions.length > 0 ? ` [${conditions.join(', ')}]` : '';
+				
+				return `${position}. **${char.name}**: ${char.currentHP}/${char.maxHP} HP, ${char.currentMana}/${char.maxMana} MP${status}${conditionSuffix}`;
+			}).join('\n');
+
+			embed.addFields({
+				name: '👥 Team Status',
+				value: teamInfo || 'No other team members',
+				inline: false
+			});
+		}
+
+		return embed;
+	}
+
+	/**
+	 * Creates both player character stats embeds for the battle log
+	 * @param session The battle session
+	 * @returns Array of embeds [player1Embed, player2Embed]
+	 */
+	public createBothPlayerStatsEmbeds(session: BattleSession): [EmbedBuilder, EmbedBuilder] {
+		const player1Embed = this.createPlayerCharacterStatsEmbed(session.player1Id, session);
+		const player2Embed = this.createPlayerCharacterStatsEmbed(session.player2Id, session);
+		return [player1Embed, player2Embed];
 	}
 }

@@ -25,15 +25,10 @@ export class BattleActionListener {
 		let action: 'attack' | 'switch' | 'flee';
 		let target: string | undefined;
 
-		// Parse the selected value
-		if (selectedValue === 'flee') {
-			action = 'flee';
-		} else if (selectedValue.startsWith('attack_')) {
+		// Parse the selected value - only handle attacks now (switch/flee are buttons)
+		if (selectedValue.startsWith('attack_')) {
 			action = 'attack';
 			target = selectedValue.replace('attack_', '');
-		} else if (selectedValue.startsWith('switch_')) {
-			action = 'switch';
-			target = selectedValue.replace('switch_', '');
 		} else if (selectedValue.startsWith('disabled_')) {
 			// Handle disabled technique selection
 			const techniqueName = selectedValue.replace('disabled_', '');
@@ -44,7 +39,7 @@ export class BattleActionListener {
 			return;
 		} else {
 			await interaction.reply({
-				content: '❌ Invalid move selection!',
+				content: '❌ Invalid technique selection! Please select an attack technique.',
 				ephemeral: true
 			});
 			return;
@@ -65,9 +60,16 @@ export class BattleActionListener {
 		const playerMoveEmbed = session.interface.createPlayerMoveEmbed(userId, session);
 		const isPlayer1 = userId === session.player1Id;
 		
+		// If player has acted, remove components. Otherwise, keep all components available
+		const components = session.playerActions.get(userId) ? [] : [
+			session.interface.createMoveSelectionMenu(isPlayer1),
+			session.interface.createTeamSwitchButtons(userId, session),
+			session.interface.createForfeitButton()
+		];
+		
 		await interaction.update({
 			embeds: [playerMoveEmbed],
-			components: session.playerActions.get(userId) ? [] : [session.interface.createMoveSelectionMenu(isPlayer1)]
+			components: components
 		});
 
 		// Check if both players have now acted

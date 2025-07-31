@@ -14,7 +14,43 @@ export const ZOLTRAAK = new Technique({
     manaCost: 15,
     initiative: 0,
     effects: [],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+
+        // Classic Zoltraak casting
+        messageCache.push(`⚡ **${userName} extends their hand, magical energy gathering!**`);
+        messageCache.push(`🔮 "Zoltraak!" The basic offensive spell takes shape!`);
+
+        // Consume mana
+        user.consumeMana(15);
+        messageCache.pushManaChange(userName, -15, user.currentMana);
+
+        // Calculate damage
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor(stats.magicAttack - targetStats.magicDefense);
+        
+        // Apply technique power
+        damage = Math.floor(damage * 0.7);
+        
+        // Add variance
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+
+        // Apply damage
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        
+        messageCache.push(`💫 **Piercing magical projectiles streak toward ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+
+        // Check for defeat
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} falls to the fundamental offensive magic!**`);
+        }
+    }
 });
 
 export const HEALING_MAGIC = new Technique({
@@ -29,7 +65,41 @@ export const HEALING_MAGIC = new Technique({
     effects: [
         createHealEffect(40, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = target ? session.interface.formatCharacterWithPlayer(target, session) : userName;
+
+        // Healing sequence
+        messageCache.push(`✨ **${userName} extends their hands, channeling restorative magic!**`);
+        messageCache.push(`🌟 Warm, golden light envelops ${targetName}!`);
+
+        // Consume mana
+        user.consumeMana(20);
+        messageCache.pushManaChange(userName, -20, user.currentMana);
+
+        // Calculate healing
+        const healingPower = Math.floor(user.getEffectiveStats().magicAttack * 0.6);
+        const targetToHeal = target || user;
+        const actualHealing = Math.min(healingPower, targetToHeal.maxHP - targetToHeal.currentHP);
+        
+        if (actualHealing > 0) {
+            targetToHeal.currentHP += actualHealing;
+            messageCache.push(`💚 **The divine light mends ${targetName}'s wounds!**`);
+            messageCache.pushHealing(targetName, actualHealing, targetToHeal.currentHP);
+        } else {
+            messageCache.push(`💚 **${targetName} is already at full health!**`);
+        }
+
+        // Chance for bonus effect
+        if (Math.random() < 0.2) {
+            const bonusHealing = Math.floor(healingPower * 0.3);
+            if (targetToHeal.currentHP + bonusHealing <= targetToHeal.maxHP) {
+                targetToHeal.currentHP += bonusHealing;
+                messageCache.push(`🌟 **The healing magic resonates, providing ${bonusHealing} additional restoration!**`);
+            }
+        }
+    }
 });
 
 export const MANA_SHIELD = new Technique({
@@ -44,7 +114,14 @@ export const MANA_SHIELD = new Technique({
     effects: [
         createStatBoostEffect('magicDefense', 3, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`🛡️ **${userName} weaves protective magic around themselves!**`);
+        user.consumeMana(18);
+        messageCache.pushManaChange(userName, -18, user.currentMana);
+        messageCache.push(`✨ **A shimmering mana barrier surrounds ${userName}!**`);
+    }
 });
 
 export const DEFENSIVE_MAGIC = new Technique({
@@ -59,7 +136,14 @@ export const DEFENSIVE_MAGIC = new Technique({
     effects: [
         createStatBoostEffect('defense', 2, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`⛨ **${userName} channels defensive enchantments!**`);
+        user.consumeMana(16);
+        messageCache.pushManaChange(userName, -16, user.currentMana);
+        messageCache.push(`🔰 **${userName}'s defenses are magically reinforced!**`);
+    }
 });
 
 // ============== BINDING TECHNIQUES ==============
@@ -76,7 +160,16 @@ export const SORGANEIL = new Technique({
     effects: [
         createConditionEffect(CombatCondition.Stunned, 0.6, EffectTarget.Opponent)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🕸️ **${userName} extends their hand toward ${targetName}!**`);
+        messageCache.push(`⛓️ "Sorganeil!" Binding magic weaves through the air!`);
+        user.consumeMana(25);
+        messageCache.pushManaChange(userName, -25, user.currentMana);
+        messageCache.push(`🔒 **Magical restraints attempt to bind ${targetName}!**`);
+    }
 });
 
 export const BINDING_SPELL = new Technique({
@@ -91,7 +184,15 @@ export const BINDING_SPELL = new Technique({
     effects: [
         createStatBoostEffect('speed', -2, 0.8, EffectTarget.Opponent)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🌀 **${userName} weaves restraining magic!**`);
+        user.consumeMana(20);
+        messageCache.pushManaChange(userName, -20, user.currentMana);
+        messageCache.push(`⛓️ **Magical bindings attempt to slow ${targetName}!**`);
+    }
 });
 
 // ============== ADVANCED DESTRUCTION MAGIC ==============
@@ -108,7 +209,27 @@ export const JUDRADJIM = new Technique({
     effects: [
         createConditionEffect(CombatCondition.Stunned, 0.3, EffectTarget.Opponent)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`⚡ **${userName} raises both hands as electricity crackles!**`);
+        messageCache.push(`🌩️ "Judradjim!" Lightning magic surges forth!`);
+        user.consumeMana(35);
+        messageCache.pushManaChange(userName, -35, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.magicAttack - targetStats.magicDefense) * 0.95);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`⚡ **Bolts of lightning strike ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} is overwhelmed by the electric assault!**`);
+        }
+    }
 });
 
 export const VOLLZANBEL = new Technique({
@@ -121,7 +242,27 @@ export const VOLLZANBEL = new Technique({
     manaCost: 45,
     initiative: -2,
     effects: [],
-    properties: { magicBased: true, areaEffect: true }
+    properties: { magicBased: true, areaEffect: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🔥 **${userName} gathers immense magical energy!**`);
+        messageCache.push(`🌋 "Vollzanbel!" Explosive fire magic takes form!`);
+        user.consumeMana(45);
+        messageCache.pushManaChange(userName, -45, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.magicAttack - targetStats.magicDefense) * 1.1);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`💥 **A massive explosion engulfs ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} is consumed by the fiery explosion!**`);
+        }
+    }
 });
 
 export const GRAUSAMKEIT = new Technique({
@@ -134,7 +275,26 @@ export const GRAUSAMKEIT = new Technique({
     manaCost: 30,
     initiative: 0,
     effects: [],
-    properties: { magicBased: true, armorPiercing: true }
+    properties: { magicBased: true, armorPiercing: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🔪 **${userName} channels cruel, piercing magic!**`);
+        messageCache.push(`⚔️ "Grausamkeit!" Dark energy tears through the air!`);
+        user.consumeMana(30);
+        messageCache.pushManaChange(userName, -30, user.currentMana);
+        const stats = user.getEffectiveStats();
+        let damage = Math.floor(stats.magicAttack * 0.85);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`🧨 **Cruel magic pierces through ${targetName}'s defenses!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} falls to the merciless assault!**`);
+        }
+    }
 });
 
 // ============== ANALYSIS AND DETECTION ==============
@@ -151,7 +311,16 @@ export const ANALYSIS = new Technique({
     effects: [
         createStatBoostEffect('magicAttack', 1, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🔍 **${userName} carefully observes ${targetName}!**`);
+        user.consumeMana(12);
+        messageCache.pushManaChange(userName, -12, user.currentMana);
+        messageCache.push(`🧠 **${userName} analyzes ${targetName}'s weaknesses!**`);
+        messageCache.push(`✨ **${userName}'s magical precision increases!**`);
+    }
 });
 
 export const DETECT_MAGIC = new Technique({
@@ -164,7 +333,14 @@ export const DETECT_MAGIC = new Technique({
     manaCost: 10,
     initiative: 3,
     effects: [],
-    properties: { magicBased: true }
+    properties: { magicBased: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`🔮 **${userName} extends their magical senses!**`);
+        user.consumeMana(10);
+        messageCache.pushManaChange(userName, -10, user.currentMana);
+        messageCache.push(`✨ **${userName} detects the flow of magical energy!**`);
+    }
 });
 
 // ============== PHYSICAL TECHNIQUES ==============
@@ -179,7 +355,72 @@ export const DRAGON_SLASH = new Technique({
     manaCost: 25,
     initiative: -1,
     effects: [],
-    properties: { weaponBased: true, dragonSlayer: true }
+    properties: { weaponBased: true, dragonSlayer: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+
+        // Epic dragon slaying sequence
+        messageCache.push(`⚔️ **${userName} raises their weapon high, channeling draconic energy!**`);
+        messageCache.push(`🐉 Ancient dragon power courses through the blade!`);
+        messageCache.push(`🔥 The weapon glows with legendary dragonslaying force!`);
+
+        // Consume mana (physical techniques can still use mana for enhancement)
+        user.consumeMana(25);
+        messageCache.pushManaChange(userName, -25, user.currentMana);
+
+        // Calculate enhanced damage
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor(stats.attack - targetStats.defense);
+        
+        // Dragon Slash power bonus
+        damage = Math.floor(damage * 1.2);
+        
+        // Check if target is dragon-like for bonus damage
+        const isDragonLike = target!.races.some(race => 
+            race.toLowerCase().includes('dragon') || 
+            race.toLowerCase().includes('wyrm') || 
+            race.toLowerCase().includes('drake')
+        );
+        
+        if (isDragonLike) {
+            damage = Math.floor(damage * 1.5);
+            messageCache.push(`🐲 **The dragonslaying technique finds its true purpose!**`);
+        }
+        
+        // Add variance
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+
+        // Critical hit chance
+        const isCritical = Math.random() < 0.2;
+        if (isCritical) {
+            damage = Math.floor(damage * 1.5);
+            messageCache.push(`💥 **CRITICAL HIT!** The dragon slash finds a devastating opening!`);
+        }
+
+        // Apply damage with epic description
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        
+        if (isCritical) {
+            messageCache.push(`⚔️ **${userName}'s legendary blade cleaves through ${targetName} with earth-shaking force!**`);
+        } else {
+            messageCache.push(`🗡️ **${userName} unleashes the devastating Dragon Slash upon ${targetName}!**`);
+        }
+        
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+
+        // Check for defeat
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            if (isDragonLike) {
+                messageCache.push(`🐉 **${targetName} falls to the legendary dragonslaying technique!**`);
+            } else {
+                messageCache.push(`💀 **${targetName} is overwhelmed by the mighty Dragon Slash!**`);
+            }
+        }
+    }
 });
 
 export const BERSERKER_RAGE = new Technique({
@@ -195,7 +436,15 @@ export const BERSERKER_RAGE = new Technique({
         createStatBoostEffect('attack', 4, 1.0, EffectTarget.Self),
         createStatBoostEffect('defense', -2, 1.0, EffectTarget.Self)
     ],
-    properties: { weaponBased: true }
+    properties: { weaponBased: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`😡 **${userName} lets out a battle cry!**`);
+        user.consumeMana(20);
+        messageCache.pushManaChange(userName, -20, user.currentMana);
+        messageCache.push(`🔥 **${userName} enters a berserker rage!**`);
+        messageCache.push(`⚔️ **${userName}'s attack power surges, but defenses weaken!**`);
+    }
 });
 
 export const GUARD_BREAKER = new Technique({
@@ -208,7 +457,25 @@ export const GUARD_BREAKER = new Technique({
     manaCost: 18,
     initiative: 0,
     effects: [],
-    properties: { weaponBased: true, armorPiercing: true }
+    properties: { weaponBased: true, armorPiercing: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`⚔️ **${userName} focuses on breaking through defenses!**`);
+        user.consumeMana(18);
+        messageCache.pushManaChange(userName, -18, user.currentMana);
+        const stats = user.getEffectiveStats();
+        let damage = Math.floor(stats.attack * 0.8);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`💥 **${userName} strikes through ${targetName}'s guard!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} falls to the devastating strike!**`);
+        }
+    }
 });
 
 export const HOLY_STRIKE = new Technique({
@@ -221,7 +488,31 @@ export const HOLY_STRIKE = new Technique({
     manaCost: 22,
     initiative: 0,
     effects: [],
-    properties: { weaponBased: true, holyDamage: true }
+    properties: { weaponBased: true, holyDamage: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`✨ **${userName}'s weapon glows with divine light!**`);
+        user.consumeMana(22);
+        messageCache.pushManaChange(userName, -22, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.attack - targetStats.defense) * 0.85);
+        const isDemon = target!.races.some(race => race.toLowerCase().includes('demon'));
+        if (isDemon) {
+            damage = Math.floor(damage * 1.5);
+            messageCache.push(`🔥 **The holy power burns against demonic essence!**`);
+        }
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`⛨ **${userName} strikes with divine fury!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} is purified by the holy strike!**`);
+        }
+    }
 });
 
 // ============== SUPPORT TECHNIQUES ==============
@@ -240,7 +531,15 @@ export const COURAGE_BOOST = new Technique({
         createStatBoostEffect('defense', 2, 1.0, EffectTarget.Self),
         createStatBoostEffect('speed', 1, 1.0, EffectTarget.Self)
     ],
-    properties: { inspirational: true }
+    properties: { inspirational: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`👊 **${userName} summons inner courage!**`);
+        user.consumeMana(25);
+        messageCache.pushManaChange(userName, -25, user.currentMana);
+        messageCache.push(`✨ **${userName} feels inspired and empowered!**`);
+        messageCache.push(`💪 **${userName}'s combat abilities are enhanced!**`);
+    }
 });
 
 export const SHIELD_WALL = new Technique({
@@ -255,7 +554,14 @@ export const SHIELD_WALL = new Technique({
     effects: [
         createStatBoostEffect('defense', 5, 1.0, EffectTarget.Self)
     ],
-    properties: { defensive: true }
+    properties: { defensive: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`🛡️ **${userName} raises a massive defensive barrier!**`);
+        user.consumeMana(30);
+        messageCache.pushManaChange(userName, -30, user.currentMana);
+        messageCache.push(`🏰 **An impenetrable shield wall protects ${userName}!**`);
+    }
 });
 
 export const SPEED_BOOST = new Technique({
@@ -270,7 +576,28 @@ export const SPEED_BOOST = new Technique({
     effects: [
         createStatBoostEffect('speed', 3, 1.0, EffectTarget.Self)
     ],
-    properties: { enhancement: true }
+    properties: { enhancement: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = target ? session.interface.formatCharacterWithPlayer(target, session) : userName;
+
+        // Magical enhancement sequence
+        messageCache.push(`✨ **${userName} weaves threads of enhancement magic!**`);
+        messageCache.push(`💨 Wind magic swirls around ${targetName}, lightening their steps!`);
+
+        // Consume mana
+        user.consumeMana(15);
+        messageCache.pushManaChange(userName, -15, user.currentMana);
+
+        // Apply speed enhancement effect
+        messageCache.push(`🌪️ **${targetName} feels incredibly swift and agile!**`);
+        messageCache.push(`⚡ **${targetName}'s reflexes are dramatically enhanced!**`);
+        
+        // Note: The actual stat boost would be handled by the effects system
+        // This is just the flavor text for the technique usage
+        
+        messageCache.push(`💫 **${targetName} is now enhanced with magical swiftness!**`);
+    }
 });
 
 // ============== DEMON/DARK TECHNIQUES ==============
@@ -287,7 +614,26 @@ export const SHADOW_BLAST = new Technique({
     effects: [
         createConditionEffect(CombatCondition.Fear, 0.4, EffectTarget.Opponent)
     ],
-    properties: { magicBased: true, darkMagic: true }
+    properties: { magicBased: true, darkMagic: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🌑 **${userName} gathers dark energy!**`);
+        user.consumeMana(28);
+        messageCache.pushManaChange(userName, -28, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.magicAttack - targetStats.magicDefense) * 0.85);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`🖤 **Shadows engulf ${targetName} with malevolent energy!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} is consumed by the darkness!**`);
+        }
+    }
 });
 
 export const LIFE_DRAIN = new Technique({
@@ -302,7 +648,31 @@ export const LIFE_DRAIN = new Technique({
     effects: [
         createHealEffect(30, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true, darkMagic: true, lifeDrain: true }
+    properties: { magicBased: true, darkMagic: true, lifeDrain: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`🧿 **${userName} extends a shadowy tendril toward ${targetName}!**`);
+        user.consumeMana(25);
+        messageCache.pushManaChange(userName, -25, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.magicAttack - targetStats.magicDefense) * 0.6);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        const healing = Math.min(damage, user.maxHP - user.currentHP);
+        user.currentHP += healing;
+        messageCache.push(`🩸 **${userName} drains life force from ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (healing > 0) {
+            messageCache.pushHealing(userName, healing, user.currentHP);
+        }
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName}'s life force is completely drained!**`);
+        }
+    }
 });
 
 export const DEMONIC_AURA = new Technique({
@@ -318,7 +688,16 @@ export const DEMONIC_AURA = new Technique({
         createStatBoostEffect('attack', -2, 0.8, EffectTarget.Opponent),
         createConditionEffect(CombatCondition.Fear, 0.6, EffectTarget.Opponent)
     ],
-    properties: { aura: true, darkMagic: true }
+    properties: { aura: true, darkMagic: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`😈 **${userName} emanates a terrifying demonic presence!**`);
+        user.consumeMana(20);
+        messageCache.pushManaChange(userName, -20, user.currentMana);
+        messageCache.push(`🌑 **Dark energy radiates from ${userName}, striking fear!**`);
+        messageCache.push(`😨 **${targetName} feels their resolve weakening!**`);
+    }
 });
 
 // ============== SPECIAL CHARACTER TECHNIQUES ==============
@@ -335,7 +714,22 @@ export const GODDESS_BLESSING = new Technique({
     effects: [
         createHealEffect(60, 1.0, EffectTarget.Self)
     ],
-    properties: { magicBased: true, divine: true, removesCurses: true }
+    properties: { magicBased: true, divine: true, removesCurses: true },
+    onUsed: ({ user, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        messageCache.push(`✨ **${userName} calls upon divine power!**`);
+        user.consumeMana(35);
+        messageCache.pushManaChange(userName, -35, user.currentMana);
+        const healingPower = Math.floor(user.getEffectiveStats().magicAttack * 0.8);
+        const actualHealing = Math.min(healingPower, user.maxHP - user.currentHP);
+        if (actualHealing > 0) {
+            user.currentHP += actualHealing;
+            messageCache.push(`👼 **Golden light descends, blessing ${userName}!**`);
+            messageCache.pushHealing(userName, actualHealing, user.currentHP);
+        } else {
+            messageCache.push(`👼 **Divine light surrounds ${userName}, though they need no healing!**`);
+        }
+    }
 });
 
 export const MAGE_KILLER = new Technique({
@@ -350,7 +744,31 @@ export const MAGE_KILLER = new Technique({
     effects: [
         createConditionEffect(CombatCondition.MagicSeal, 0.7, EffectTarget.Opponent)
     ],
-    properties: { antiMagic: true, weaponBased: true }
+    properties: { antiMagic: true, weaponBased: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`⚔️ **${userName} strikes with anti-magic precision!**`);
+        user.consumeMana(20);
+        messageCache.pushManaChange(userName, -20, user.currentMana);
+        const stats = user.getEffectiveStats();
+        const targetStats = target!.getEffectiveStats();
+        let damage = Math.floor((stats.attack - targetStats.defense) * 0.7);
+        const isMage = target!.techniques.some(tech => tech.properties?.magicBased);
+        if (isMage) {
+            damage = Math.floor(damage * 1.3);
+            messageCache.push(`⚡ **The anti-magic strike disrupts ${targetName}'s magical abilities!**`);
+        }
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`💥 **${userName}'s anti-magic technique hits ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} falls to the mage-killing strike!**`);
+        }
+    }
 });
 
 export const CUTTING_MAGIC = new Technique({
@@ -363,7 +781,25 @@ export const CUTTING_MAGIC = new Technique({
     manaCost: 32,
     initiative: 0,
     effects: [],
-    properties: { magicBased: true, armorPiercing: true, slashing: true }
+    properties: { magicBased: true, armorPiercing: true, slashing: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = session.interface.formatCharacterWithPlayer(target!, session);
+        messageCache.push(`✂️ **${userName} weaves slicing magic through the air!**`);
+        user.consumeMana(32);
+        messageCache.pushManaChange(userName, -32, user.currentMana);
+        const stats = user.getEffectiveStats();
+        let damage = Math.floor(stats.magicAttack * 0.95);
+        damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
+        damage = Math.max(1, damage);
+        const oldHP = target!.currentHP;
+        target!.takeDamage(damage);
+        messageCache.push(`🔪 **Magical blades slice through ${targetName}!**`);
+        messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
+        if (target!.currentHP <= 0 && oldHP > 0) {
+            messageCache.push(`💀 **${targetName} is cut down by the slicing magic!**`);
+        }
+    }
 });
 
 export const FOLK_MAGIC = new Technique({
@@ -376,7 +812,36 @@ export const FOLK_MAGIC = new Technique({
     manaCost: 8,
     initiative: 1,
     effects: [],
-    properties: { magicBased: true, reliable: true }
+    properties: { magicBased: true, reliable: true },
+    onUsed: ({ user, target, messageCache, session }) => {
+        const userName = session.interface.formatCharacterWithPlayer(user, session);
+        const targetName = target ? session.interface.formatCharacterWithPlayer(target, session) : userName;
+        messageCache.push(`✨ **${userName} casts simple but reliable folk magic!**`);
+        user.consumeMana(8);
+        messageCache.pushManaChange(userName, -8, user.currentMana);
+        if (target && target !== user) {
+            const stats = user.getEffectiveStats();
+            const targetStats = target.getEffectiveStats();
+            let damage = Math.floor((stats.magicAttack - targetStats.magicDefense) * 0.35);
+            damage = Math.floor(damage * (0.95 + Math.random() * 0.1));
+            damage = Math.max(1, damage);
+            const oldHP = target.currentHP;
+            target.takeDamage(damage);
+            messageCache.push(`🌟 **Simple magic affects ${targetName}!**`);
+            messageCache.pushDamage(userName, targetName, damage, target.currentHP);
+            if (target.currentHP <= 0 && oldHP > 0) {
+                messageCache.push(`💀 **${targetName} falls to the reliable folk magic!**`);
+            }
+        } else {
+            const healing = Math.floor(user.maxHP * 0.1);
+            const actualHealing = Math.min(healing, user.maxHP - user.currentHP);
+            if (actualHealing > 0) {
+                user.currentHP += actualHealing;
+                messageCache.pushHealing(userName, actualHealing, user.currentHP);
+            }
+            messageCache.push(`🌿 **Folk magic provides comfort and minor restoration!**`);
+        }
+    }
 });
 
 // ============== TECHNIQUE COLLECTIONS BY CHARACTER TYPE ==============
