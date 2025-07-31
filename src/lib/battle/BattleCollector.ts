@@ -1,9 +1,10 @@
 import { ButtonInteraction, Message, ComponentType, InteractionCollector, EmbedBuilder } from 'discord.js';
 import { BattleManager } from './BattleManager';
+import { BATTLE_CONSTANTS } from '../util/constants';
 
 export class BattleCollector {
 	private static activeCollectors: Map<string, InteractionCollector<any>> = new Map();
-	private static readonly TURN_TIMEOUT = 2 * 60 * 1000; // 2 minutes
+	private static readonly TURN_TIMEOUT = BATTLE_CONSTANTS.TIMEOUT_DURATION;
 
 	public static createCollector(message: Message, userId: string): void {
 		// Clean up any existing collector
@@ -15,7 +16,7 @@ export class BattleCollector {
 				const session = BattleManager.getBattle(userId);
 				if (!session) return false;
 				// Allow both players in the battle to interact
-				const isValidPlayer = interaction.user.id === session.player1Id || interaction.user.id === session.player2Id;
+				const isValidPlayer = interaction.user.id === session.user.id || interaction.user.id === session.opponent.id;
 				return isValidPlayer && (interaction.customId.startsWith('battle_') || interaction.customId.startsWith('challenge_'));
 			},
 			time: this.TURN_TIMEOUT
@@ -159,11 +160,11 @@ export class BattleCollector {
 				content: `⚔️ **Battle Started!** 
 				
 🎯 **Private Threads Created:**
-• <#${session.player1ThreadId}> - Player 1 Moves
-• <#${session.player2ThreadId}> - Player 2 Moves
+• <#${session.player1Thread}> - Player 1 Moves
+• <#${session.player2Thread}> - Player 2 Moves
 
 🏟️ **Public Battle Thread:**
-• <#${session.battleLogThreadId}> - Live Battle Log
+• <#${session.battleLogThread}> - Live Battle Log
 
 📱 **Check your private thread to select moves!**`,
 				embeds: [battleLogEmbed],

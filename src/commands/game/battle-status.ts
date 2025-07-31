@@ -9,11 +9,7 @@ import { BattleManager } from '../../lib/battle/BattleManager';
 })
 export class BattleStatusCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName('battle-status')
-				.setDescription('View your current battle status')
-		);
+		registry.registerChatInputCommand((builder) => builder.setName('battle-status').setDescription('View your current battle status'));
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
@@ -38,9 +34,9 @@ export class BattleStatusCommand extends Command {
 		const statusEmbed = session.interface.createBattleStatusEmbed(session);
 
 		// Add additional status info
-		const isPlayer1 = interaction.user.id === session.player1Id;
+		const isPlayer1 = interaction.user.id === session.user.id;
 		const hasActed = session.playerActions.get(interaction.user.id) || false;
-		const opponentId = isPlayer1 ? session.player2Id : session.player1Id;
+		const opponentId = isPlayer1 ? session.opponent.id : session.user.id;
 		const opponentHasActed = session.playerActions.get(opponentId) || false;
 
 		statusEmbed.addFields({
@@ -56,14 +52,11 @@ export class BattleStatusCommand extends Command {
 		});
 
 		// Add channel navigation info if channels exist
-		if (session.player1ThreadId && session.player2ThreadId && session.battleLogThreadId) {
-			const playerChannelId = isPlayer1 ? session.player1ThreadId : session.player2ThreadId;
+		if (session.player1Thread && session.player2Thread && session.battleLogThread) {
+			const playerChannelId = isPlayer1 ? session.player1Thread : session.player2Thread;
 			statusEmbed.addFields({
 				name: '🔗 Battle Channels',
-				value: [
-					`• Your moves: <#${playerChannelId}>`,
-					`• Live battle: <#${session.battleLogThreadId}>`
-				].join('\n'),
+				value: [`• Your moves: <#${playerChannelId}>`, `• Live battle: <#${session.battleLogThread}>`].join('\n'),
 				inline: false
 			});
 		}

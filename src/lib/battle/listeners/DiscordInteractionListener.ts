@@ -126,7 +126,7 @@ export class DiscordInteractionListener {
 		}
 
 		const position = parseInt(positionMatch[1]);
-		const isPlayer1 = userId === session.player1Id;
+		const isPlayer1 = userId === session.user.id;
 		const team = isPlayer1 ? session.battle.getUserCharacters() : session.battle.getOpponentCharacters();
 
 		// Get character at position (position is 1-indexed, array is 0-indexed)
@@ -149,7 +149,7 @@ export class DiscordInteractionListener {
 			});
 
 			// Check if both players have acted and process turn if needed
-			const bothPlayersActed = session.playerActions.get(session.player1Id) && session.playerActions.get(session.player2Id);
+			const bothPlayersActed = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
 			if (bothPlayersActed) {
 				const turnResult = await BattleManager.processTurn(session);
 				if (turnResult.success) {
@@ -173,13 +173,13 @@ export class DiscordInteractionListener {
 
 	private isPlayerInCorrectChannel(interaction: StringSelectMenuInteraction | ButtonInteraction, session: BattleSession, userId: string): boolean {
 		const channelId = interaction.channelId;
-		
-		if (userId === session.player1Id) {
-			return channelId === session.player1ThreadId;
-		} else if (userId === session.player2Id) {
-			return channelId === session.player2ThreadId;
+
+		if (userId === session.user.id) {
+			return channelId === session.player1Thread;
+		} else if (userId === session.opponent.id) {
+			return channelId === session.player2Thread;
 		}
-		
+
 		return false;
 	}
 }

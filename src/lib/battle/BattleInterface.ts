@@ -23,16 +23,16 @@ export class BattleInterface {
 
 		// Battle info
 		if (!this.battle.isComplete() && session) {
-			const player1HasActed = session.playerActions.get(session.player1Id) || false;
-			const player2HasActed = session.playerActions.get(session.player2Id) || false;
+			const player1HasActed = session.playerActions.get(session.user.id) || false;
+			const player2HasActed = session.playerActions.get(session.opponent.id) || false;
 
 			let statusText = '';
 			if (player1HasActed && player2HasActed) {
 				statusText = '✅ Both players have selected actions - processing turn...';
 			} else if (player1HasActed) {
-				statusText = `⏳ ${session.player1DisplayName} ready - waiting for ${session.player2DisplayName}...`;
+				statusText = `⏳ ${session.user.displayName} ready - waiting for ${session.opponent.displayName}...`;
 			} else if (player2HasActed) {
-				statusText = `⏳ ${session.player2DisplayName} ready - waiting for ${session.player1DisplayName}...`;
+				statusText = `⏳ ${session.opponent.displayName} ready - waiting for ${session.user.displayName}...`;
 			} else {
 				statusText = '⏱️ Waiting for both players to select their actions...';
 			}
@@ -76,12 +76,12 @@ export class BattleInterface {
 
 		embed.addFields(
 			{
-				name: `👤 ${session.player1DisplayName} Team`,
+				name: `👤 ${session.user.displayName} Team`,
 				value: userStatus || 'No characters available',
 				inline: true
 			},
 			{
-				name: `👥 ${session.player2DisplayName} Team`,
+				name: `👥 ${session.opponent.displayName} Team`,
 				value: opponentStatus || 'No characters available',
 				inline: true
 			},
@@ -105,7 +105,7 @@ export class BattleInterface {
 		// Winner info if battle is complete
 		if (this.battle.isComplete()) {
 			const winner = this.battle.getWinner();
-			const winnerName = winner === 'user' ? session.player1DisplayName : session.player2DisplayName;
+			const winnerName = winner === 'user' ? session.user.displayName : session.opponent.displayName;
 			embed.addFields({
 				name: '🏆 Battle Result',
 				value: `🎉 **${winnerName} Wins!**\n\n${this.battle.getBattleSummary()}`,
@@ -189,9 +189,7 @@ export class BattleInterface {
 		const limitedOptions = options.slice(0, 25);
 
 		const availableAttacks = limitedOptions.filter((opt) => !opt.value.startsWith('disabled_')).length;
-		const placeholderText = availableAttacks > 0 
-			? `Choose your technique... (${availableAttacks} available)`
-			: 'No techniques available...';
+		const placeholderText = availableAttacks > 0 ? `Choose your technique... (${availableAttacks} available)` : 'No techniques available...';
 
 		const selectMenu = new StringSelectMenuBuilder().setCustomId('battle_move_select').setPlaceholder(placeholderText).addOptions(limitedOptions);
 
@@ -199,8 +197,8 @@ export class BattleInterface {
 	}
 
 	public createPlayerMoveEmbed(playerId: string, session: BattleSession): EmbedBuilder {
-		const isPlayer1 = playerId === session.player1Id;
-		const playerName = isPlayer1 ? session.player1DisplayName : session.player2DisplayName;
+		const isPlayer1 = playerId === session.user.id;
+		const playerName = isPlayer1 ? session.user.displayName : session.opponent.displayName;
 		const character = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
 		const opponentCharacter = isPlayer1 ? this.battle.state.opponentCharacter : this.battle.state.userCharacter;
 
@@ -248,7 +246,7 @@ export class BattleInterface {
 		}
 
 		// Show turn status
-		const opponentId = isPlayer1 ? session.player2Id : session.player1Id;
+		const opponentId = isPlayer1 ? session.opponent.id : session.user.id;
 		const opponentHasActed = session.playerActions.get(opponentId);
 		const playerHasActed = session.playerActions.get(playerId);
 
@@ -289,13 +287,13 @@ export class BattleInterface {
 		// Add battle turn info and status in the description
 		if (this.battle.isComplete()) {
 			const winner = this.battle.getWinner();
-			const winnerName = winner === 'user' ? session.player1DisplayName : session.player2DisplayName;
+			const winnerName = winner === 'user' ? session.user.displayName : session.opponent.displayName;
 			embed.setDescription(`🏆 **Battle Complete!** 
 **Winner:** ${winnerName} 🎉
 **Final Turn:** ${currentTurn}`);
 		} else {
-			const player1HasActed = session.playerActions.get(session.player1Id);
-			const player2HasActed = session.playerActions.get(session.player2Id);
+			const player1HasActed = session.playerActions.get(session.user.id);
+			const player2HasActed = session.playerActions.get(session.opponent.id);
 
 			let description = `🎯 **Turn ${currentTurn}**\n`;
 
@@ -304,7 +302,7 @@ export class BattleInterface {
 			} else {
 				const p1Status = player1HasActed ? '✅ Ready' : '⏳ Selecting';
 				const p2Status = player2HasActed ? '✅ Ready' : '⏳ Selecting';
-				description += `**${session.player1DisplayName}:** ${p1Status}\n**${session.player2DisplayName}:** ${p2Status}`;
+				description += `**${session.user.displayName}:** ${p1Status}\n**${session.opponent.displayName}:** ${p2Status}`;
 			}
 
 			embed.setDescription(description);
@@ -324,7 +322,7 @@ export class BattleInterface {
 
 			embed.addFields(
 				{
-					name: `👤 ${session.player1DisplayName} - ${userChar.name}`,
+					name: `👤 ${session.user.displayName} - ${userChar.name}`,
 					value: `${this.createHPBar(userChar)} **${userChar.currentHP}**/**${userChar.maxHP}** HP\n💙 **${userChar.currentMana}**/**${userChar.maxMana}** MP${p1ConditionText}`,
 					inline: true
 				},
@@ -334,7 +332,7 @@ export class BattleInterface {
 					inline: true
 				},
 				{
-					name: `👤 ${session.player2DisplayName} - ${opponentChar.name}`,
+					name: `👤 ${session.opponent.displayName} - ${opponentChar.name}`,
 					value: `${this.createHPBar(opponentChar)} **${opponentChar.currentHP}**/**${opponentChar.maxHP}** HP\n💙 **${opponentChar.currentMana}**/**${opponentChar.maxMana}** MP${p2ConditionText}`,
 					inline: true
 				}
@@ -469,7 +467,7 @@ export class BattleInterface {
 
 			embed.addFields(
 				{
-					name: `👤 ${session.player1DisplayName} Final Status`,
+					name: `👤 ${session.user.displayName} Final Status`,
 					value: `**${userChar.name}**\n${this.createHPBar(userChar)}\n❤️ ${userChar.currentHP}/${userChar.maxHP} HP\n👥 ${userSurvivors}/${userTeam.length} characters remaining`,
 					inline: true
 				},
@@ -479,7 +477,7 @@ export class BattleInterface {
 					inline: true
 				},
 				{
-					name: `👤 ${session.player2DisplayName} Final Status`,
+					name: `👤 ${session.opponent.displayName} Final Status`,
 					value: `**${opponentChar.name}**\n${this.createHPBar(opponentChar)}\n❤️ ${opponentChar.currentHP}/${opponentChar.maxHP} HP\n👥 ${opponentSurvivors}/${opponentTeam.length} characters remaining`,
 					inline: true
 				}
@@ -618,7 +616,7 @@ export class BattleInterface {
 	 */
 	public formatCharacterWithPlayer(character: Character, session: BattleSession): string {
 		const isPlayer1Character = this.battle.getUserCharacters().includes(character);
-		const playerDisplayName = isPlayer1Character ? session.player1DisplayName : session.player2DisplayName;
+		const playerDisplayName = isPlayer1Character ? session.user.displayName : session.opponent.displayName;
 		return `${character.name} (${playerDisplayName})`;
 	}
 
@@ -629,7 +627,7 @@ export class BattleInterface {
 	 * @returns ActionRowBuilder with team switching buttons
 	 */
 	public createTeamSwitchButtons(playerId: string, session: BattleSession): ActionRowBuilder<ButtonBuilder> {
-		const isPlayer1 = playerId === session.player1Id;
+		const isPlayer1 = playerId === session.user.id;
 		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
 		const activeCharacter = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
 
@@ -637,10 +635,10 @@ export class BattleInterface {
 			const position = index + 1;
 			const isActive = character === activeCharacter;
 			const isDead = character.isDefeated();
-			
+
 			let style: ButtonStyle;
 			let disabled = false;
-			
+
 			if (isActive) {
 				style = ButtonStyle.Success; // Green
 				disabled = true;
@@ -682,14 +680,12 @@ export class BattleInterface {
 	 * @returns EmbedBuilder with character stats and team info
 	 */
 	public createPlayerCharacterStatsEmbed(playerId: string, session: BattleSession): EmbedBuilder {
-		const isPlayer1 = playerId === session.player1Id;
-		const playerDisplayName = isPlayer1 ? session.player1DisplayName : session.player2DisplayName;
+		const isPlayer1 = playerId === session.user.id;
+		const playerDisplayName = isPlayer1 ? session.user.displayName : session.opponent.displayName;
 		const activeCharacter = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
 		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
 
-		const embed = new EmbedBuilder()
-			.setTitle(`⚔️ ${playerDisplayName}'s Active Character`)
-			.setColor(isPlayer1 ? 0x3498db : 0xe74c3c);
+		const embed = new EmbedBuilder().setTitle(`⚔️ ${playerDisplayName}'s Active Character`).setColor(isPlayer1 ? 0x3498db : 0xe74c3c);
 
 		// Active character stats
 		const hpBar = this.createHPBar(activeCharacter);
@@ -712,16 +708,18 @@ export class BattleInterface {
 		});
 
 		// Team overview (inactive members)
-		const inactiveMembers = team.filter(char => char !== activeCharacter);
+		const inactiveMembers = team.filter((char) => char !== activeCharacter);
 		if (inactiveMembers.length > 0) {
-			const teamInfo = inactiveMembers.map((char) => {
-				const position = team.findIndex(teamChar => teamChar === char) + 1;
-				const status = char.isDefeated() ? ' 💀' : '';
-				const conditions = char.getActiveConditions();
-				const conditionSuffix = conditions.length > 0 ? ` [${conditions.join(', ')}]` : '';
-				
-				return `${position}. **${char.name}**: ${char.currentHP}/${char.maxHP} HP, ${char.currentMana}/${char.maxMana} MP${status}${conditionSuffix}`;
-			}).join('\n');
+			const teamInfo = inactiveMembers
+				.map((char) => {
+					const position = team.findIndex((teamChar) => teamChar === char) + 1;
+					const status = char.isDefeated() ? ' 💀' : '';
+					const conditions = char.getActiveConditions();
+					const conditionSuffix = conditions.length > 0 ? ` [${conditions.join(', ')}]` : '';
+
+					return `${position}. **${char.name}**: ${char.currentHP}/${char.maxHP} HP, ${char.currentMana}/${char.maxMana} MP${status}${conditionSuffix}`;
+				})
+				.join('\n');
 
 			embed.addFields({
 				name: '👥 Team Status',
@@ -739,8 +737,8 @@ export class BattleInterface {
 	 * @returns Array of embeds [player1Embed, player2Embed]
 	 */
 	public createBothPlayerStatsEmbeds(session: BattleSession): [EmbedBuilder, EmbedBuilder] {
-		const player1Embed = this.createPlayerCharacterStatsEmbed(session.player1Id, session);
-		const player2Embed = this.createPlayerCharacterStatsEmbed(session.player2Id, session);
+		const player1Embed = this.createPlayerCharacterStatsEmbed(session.user.id, session);
+		const player2Embed = this.createPlayerCharacterStatsEmbed(session.opponent.id, session);
 		return [player1Embed, player2Embed];
 	}
 }

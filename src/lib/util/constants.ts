@@ -1,5 +1,6 @@
 import { join } from 'path';
 import { setup } from '@skyra/env-utilities';
+import { hours, minutes } from './time';
 
 // Load environment variables first
 export const ROOT_DIR = join(__dirname, '..', '..');
@@ -12,7 +13,6 @@ export const RANDOM_LOADING_MESSAGE = ['Computing...', 'Thinking...', 'Cooking s
 
 export const DEFAULT_PREFIX = '>';
 export const GAME_CHANNEL_ID = process.env.GAME_CHANNEL;
-console.log('🚀 ~ GAME_CHANNEL_ID:', GAME_CHANNEL_ID);
 
 // Character Level System Constants
 export const LEVEL_CONSTANTS = {
@@ -34,8 +34,9 @@ export const IMAGE_CONSTANTS = {
 // Battle System Constants
 export const BATTLE_CONSTANTS = {
 	MAX_TIMEOUTS: 3,
+	TIMEOUT_DURATION: minutes(2), // 2 minutes in milliseconds
 	THREAD_AUTO_ARCHIVE_DURATION: 60, // 1 hour in minutes
-	BATTLE_CLEANUP_DELAY: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
-	OLD_BATTLE_MAX_AGE: 30 * 60 * 1000, // 30 minutes in milliseconds
-	CLEANUP_INTERVAL: 5 * 60 * 1000 // 5 minutes in milliseconds
+	BATTLE_CLEANUP_DELAY: hours(24), // 24 hours in milliseconds
+	OLD_BATTLE_MAX_AGE: minutes(30), // 30 minutes in milliseconds
+	CLEANUP_INTERVAL: minutes(5) // 5 minutes in milliseconds
 } as const;

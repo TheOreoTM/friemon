@@ -2,6 +2,7 @@ import { Race, CombatCondition, AmbientMagicCondition, TerrainType } from './enu
 import { Character } from '../character/Character';
 import type { Battle } from '../battle/Battle';
 import type { Technique } from '../character/Technique';
+import type { HazardType } from './types';
 
 export interface Stats {
 	hp: number;
@@ -109,8 +110,8 @@ export interface BattleState {
 	ambientMagic: AmbientMagicCondition;
 	terrain: TerrainType;
 	turn: number;
-	userHazards: Map<string, number>;
-	opponentHazards: Map<string, number>;
+	userHazards: Map<HazardType, number>;
+	opponentHazards: Map<HazardType, number>;
 }
 
 export interface CharacterData {

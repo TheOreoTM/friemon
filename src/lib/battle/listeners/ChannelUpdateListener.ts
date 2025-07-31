@@ -29,7 +29,7 @@ export class ChannelUpdateListener {
 	private async handleTurnComplete(session: BattleSession, guild: Guild): Promise<void> {
 		try {
 			// Send turn results message
-			const battleLogChannel = guild.channels.cache.get(session.battleLogThreadId!);
+			const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
 			if (battleLogChannel && battleLogChannel.isTextBased()) {
 				const turnMessage = `**Turn ${session.currentTurn} complete.**`;
 				await battleLogChannel.send(turnMessage);
@@ -84,7 +84,7 @@ export class ChannelUpdateListener {
 			}
 
 			// Send message to battle log channel
-			const battleLogChannel = guild.channels.cache.get(session.battleLogThreadId!);
+			const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
 			if (battleLogChannel && battleLogChannel.isTextBased()) {
 				await battleLogChannel.send(message);
 			}
@@ -96,14 +96,14 @@ export class ChannelUpdateListener {
 	private async getGuildFromSession(session: BattleSession): Promise<Guild | null> {
 		try {
 			// Try to get guild from any available channel
-			if (session.battleLogThreadId) {
-				const channel = await this.client?.channels.fetch(session.battleLogThreadId);
+			if (session.battleLogThread) {
+				const channel = await this.client?.channels.fetch(session.battleLogThread);
 				if (channel && 'guild' in channel) {
 					return channel.guild;
 				}
 			}
-			if (session.player1ThreadId) {
-				const channel = await this.client?.channels.fetch(session.player1ThreadId);
+			if (session.player1Thread) {
+				const channel = await this.client?.channels.fetch(session.player1Thread);
 				if (channel && 'guild' in channel) {
 					return channel.guild;
 				}
@@ -116,11 +116,11 @@ export class ChannelUpdateListener {
 	}
 
 	private async sendPrivateThreadUpdates(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1ThreadId!);
-		const player2Channel = guild.channels.cache.get(session.player2ThreadId!);
+		const player1Channel = guild.channels.cache.get(session.player1Thread!);
+		const player2Channel = guild.channels.cache.get(session.player2Thread!);
 
 		if (player1Channel && player1Channel.isTextBased()) {
-			const player1TeamEmbed = session.interface.createPlayerCharacterStatsEmbed(session.player1Id, session);
+			const player1TeamEmbed = session.interface.createPlayerCharacterStatsEmbed(session.user.id, session);
 			await player1Channel.send({
 				content: `**Turn ${session.currentTurn} Results**`,
 				embeds: [player1TeamEmbed]
@@ -128,7 +128,7 @@ export class ChannelUpdateListener {
 		}
 
 		if (player2Channel && player2Channel.isTextBased()) {
-			const player2TeamEmbed = session.interface.createPlayerCharacterStatsEmbed(session.player2Id, session);
+			const player2TeamEmbed = session.interface.createPlayerCharacterStatsEmbed(session.opponent.id, session);
 			await player2Channel.send({
 				content: `**Turn ${session.currentTurn} Results**`,
 				embeds: [player2TeamEmbed]
@@ -137,14 +137,14 @@ export class ChannelUpdateListener {
 	}
 
 	private async setupInitialMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1ThreadId!);
-		const player2Channel = guild.channels.cache.get(session.player2ThreadId!);
-		const battleLogChannel = guild.channels.cache.get(session.battleLogThreadId!);
+		const player1Channel = guild.channels.cache.get(session.player1Thread!);
+		const player2Channel = guild.channels.cache.get(session.player2Thread!);
+		const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
 
 		if (player1Channel && player1Channel.isTextBased()) {
-			const player1Embed = session.interface.createPlayerMoveEmbed(session.player1Id, session);
+			const player1Embed = session.interface.createPlayerMoveEmbed(session.user.id, session);
 			const player1Menu = session.interface.createMoveSelectionMenu(true);
-			const player1SwitchButtons = session.interface.createTeamSwitchButtons(session.player1Id, session);
+			const player1SwitchButtons = session.interface.createTeamSwitchButtons(session.user.id, session);
 			const forfeitButton = session.interface.createForfeitButton();
 
 			await player1Channel.send({
@@ -154,9 +154,9 @@ export class ChannelUpdateListener {
 		}
 
 		if (player2Channel && player2Channel.isTextBased()) {
-			const player2Embed = session.interface.createPlayerMoveEmbed(session.player2Id, session);
+			const player2Embed = session.interface.createPlayerMoveEmbed(session.opponent.id, session);
 			const player2Menu = session.interface.createMoveSelectionMenu(false);
-			const player2SwitchButtons = session.interface.createTeamSwitchButtons(session.player2Id, session);
+			const player2SwitchButtons = session.interface.createTeamSwitchButtons(session.opponent.id, session);
 			const forfeitButton = session.interface.createForfeitButton();
 
 			await player2Channel.send({
@@ -174,7 +174,7 @@ export class ChannelUpdateListener {
 	}
 
 	private async updateBattleLogChannel(session: BattleSession, guild: Guild): Promise<void> {
-		const battleLogChannel = guild.channels.cache.get(session.battleLogThreadId!);
+		const battleLogChannel = guild.channels.cache.get(session.battleLogThread!);
 		if (battleLogChannel && battleLogChannel.isTextBased()) {
 			const battleLogEmbed = session.interface.createBattleLogEmbed(session);
 			await battleLogChannel.send({
@@ -184,13 +184,13 @@ export class ChannelUpdateListener {
 	}
 
 	private async sendNextTurnMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1ThreadId!);
-		const player2Channel = guild.channels.cache.get(session.player2ThreadId!);
+		const player1Channel = guild.channels.cache.get(session.player1Thread!);
+		const player2Channel = guild.channels.cache.get(session.player2Thread!);
 
 		if (player1Channel && player1Channel.isTextBased()) {
-			const player1Embed = session.interface.createPlayerMoveEmbed(session.player1Id, session);
+			const player1Embed = session.interface.createPlayerMoveEmbed(session.user.id, session);
 			const player1Menu = session.interface.createMoveSelectionMenu(true);
-			const player1SwitchButtons = session.interface.createTeamSwitchButtons(session.player1Id, session);
+			const player1SwitchButtons = session.interface.createTeamSwitchButtons(session.user.id, session);
 			const forfeitButton = session.interface.createForfeitButton();
 
 			await player1Channel.send({
@@ -200,9 +200,9 @@ export class ChannelUpdateListener {
 		}
 
 		if (player2Channel && player2Channel.isTextBased()) {
-			const player2Embed = session.interface.createPlayerMoveEmbed(session.player2Id, session);
+			const player2Embed = session.interface.createPlayerMoveEmbed(session.opponent.id, session);
 			const player2Menu = session.interface.createMoveSelectionMenu(false);
-			const player2SwitchButtons = session.interface.createTeamSwitchButtons(session.player2Id, session);
+			const player2SwitchButtons = session.interface.createTeamSwitchButtons(session.opponent.id, session);
 			const forfeitButton = session.interface.createForfeitButton();
 
 			await player2Channel.send({
@@ -213,8 +213,8 @@ export class ChannelUpdateListener {
 	}
 
 	private async sendCompletionMessages(session: BattleSession, guild: Guild): Promise<void> {
-		const player1Channel = guild.channels.cache.get(session.player1ThreadId!);
-		const player2Channel = guild.channels.cache.get(session.player2ThreadId!);
+		const player1Channel = guild.channels.cache.get(session.player1Thread!);
+		const player2Channel = guild.channels.cache.get(session.player2Thread!);
 
 		const resultEmbed = session.interface.createBattleResultEmbed(session);
 

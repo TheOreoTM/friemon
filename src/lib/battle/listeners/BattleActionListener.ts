@@ -58,27 +58,29 @@ export class BattleActionListener {
 
 		// Update the player's channel with their action status
 		const playerMoveEmbed = session.interface.createPlayerMoveEmbed(userId, session);
-		const isPlayer1 = userId === session.player1Id;
-		
+		const isPlayer1 = userId === session.user.id;
+
 		// If player has acted, remove components. Otherwise, keep all components available
-		const components = session.playerActions.get(userId) ? [] : [
-			session.interface.createMoveSelectionMenu(isPlayer1),
-			session.interface.createTeamSwitchButtons(userId, session),
-			session.interface.createForfeitButton()
-		];
-		
+		const components = session.playerActions.get(userId)
+			? []
+			: [
+					session.interface.createMoveSelectionMenu(isPlayer1),
+					session.interface.createTeamSwitchButtons(userId, session),
+					session.interface.createForfeitButton()
+				];
+
 		await interaction.update({
 			embeds: [playerMoveEmbed],
 			components: components
 		});
 
 		// Check if both players have now acted
-		const bothPlayersActed = session.playerActions.get(session.player1Id) && session.playerActions.get(session.player2Id);
-		
+		const bothPlayersActed = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
+
 		if (bothPlayersActed) {
 			// Process the complete turn
 			const turnResult = await BattleManager.processTurn(session);
-			
+
 			if (turnResult.battleComplete) {
 				// Battle is complete
 				battleEvents.emitBattleCompleted(session, interaction.guild!);

@@ -3,10 +3,11 @@ import { Technique } from '../character/Technique';
 import { AmbientMagicCondition, TerrainType, TechniqueCategory, CombatCondition, Affinity, TechniqueEffectType } from '../types/enums';
 import { BattleState } from '../types/interfaces';
 import { TechniqueEffect } from '../character/TechniqueEffect';
-import { HazardType, TeamPosition } from '../types/types';
+import { HazardNameMap, HazardType, TeamPosition } from '../types/types';
 import { getAffinityAdvantage } from '../data/AffinityChart';
 import { randomFloat } from '../util/utils';
 import { TeamManager } from './TeamManager';
+import type { User } from 'discord.js';
 
 export class Battle {
 	public state: BattleState;
@@ -14,23 +15,23 @@ export class Battle {
 	private turnActions: Map<string, { action: string; target?: string }> = new Map();
 	public userTeam: TeamManager;
 	public opponentTeam: TeamManager;
-	private player1DisplayName: string;
-	private player2DisplayName: string;
+	public user: User;
+	public opponent: User;
 
 	constructor(
 		userParty: Character[],
 		opponentParty: Character[],
 		ambientMagic: AmbientMagicCondition = AmbientMagicCondition.None,
 		terrain: TerrainType = TerrainType.Normal,
-		player1DisplayName: string,
-		player2DisplayName: string
+		user: User,
+		opponent: User
 	) {
 		// Validate parties
 		if (!this.validateParty(userParty)) {
-			throw new Error('Invalid user party: must have 1-3 valid characters');
+			throw new Error('Invalid user party: must have 1-4 valid characters');
 		}
 		if (!this.validateParty(opponentParty)) {
-			throw new Error('Invalid opponent party: must have 1-3 valid characters');
+			throw new Error('Invalid opponent party: must have 1-4 valid characters');
 		}
 
 		this.state = {
@@ -43,20 +44,20 @@ export class Battle {
 			ambientMagic,
 			terrain,
 			turn: 1,
-			userHazards: new Map<string, number>(),
-			opponentHazards: new Map<string, number>()
+			userHazards: new Map<HazardType, number>(),
+			opponentHazards: new Map<HazardType, number>()
 		};
 
 		this.userTeam = new TeamManager(userParty, 0);
 		this.opponentTeam = new TeamManager(opponentParty, 0);
-		this.player1DisplayName = player1DisplayName;
-		this.player2DisplayName = player2DisplayName;
+		this.user = user;
+		this.opponent = opponent;
 
 		this.initializeBattle();
 	}
 
 	private validateParty(party: Character[]): boolean {
-		if (!party || party.length === 0 || party.length > 3) {
+		if (!party || party.length === 0 || party.length > 4) {
 			return false;
 		}
 
@@ -318,14 +319,7 @@ export class Battle {
 		}
 	}
 
-	private applyCondition(target: Character, condition: CombatCondition): void {
-		if (target.trait.preventCondition && target.trait.preventCondition(target, condition)) {
-			this.logMessage(`${target.name}'s trait prevents the condition!`);
-			return;
-		}
-
-		target.addCondition(condition, 3); // Default duration of 3 turns
-
+	private applyCondition(target: Character, condition: CombatCondition, duration = 3): void {
 		const conditionNames = {
 			[CombatCondition.Exhausted]: 'exhausted',
 			[CombatCondition.Stunned]: 'stunned',
@@ -338,15 +332,22 @@ export class Battle {
 			[CombatCondition.Normal]: 'normal'
 		};
 
+		if (target.trait.preventCondition && target.trait.preventCondition(target, condition)) {
+			this.logMessage(`${target.name}'s trait prevents the condition! (${conditionNames[condition]})`);
+			return;
+		}
+
+		target.addCondition(condition, duration);
+
 		this.logMessage(`${target.name} becomes ${conditionNames[condition]}!`);
 	}
 
 	// private setHazard(side: 'user' | 'opponent', hazardType: HazardType): void {
-	//   const hazardMap = side === 'user' ? this.state.userHazards : this.state.opponentHazards;
-	//   const currentLayers = hazardMap.get(hazardType) || 0;
-	//   hazardMap.set(hazardType, Math.min(currentLayers + 1, 3)); // Max 3 layers
-	//
-	//   this.logMessage(`${hazardType.replace('_', ' ')} was set on the ${side} side!`);
+	// 	const hazardMap = side === 'user' ? this.state.userHazards : this.state.opponentHazards;
+	// 	const currentLayers = hazardMap.get(hazardType) || 0;
+	// 	hazardMap.set(hazardType, Math.min(currentLayers + 1, 3)); // Max 3 layers
+
+	// 	this.logMessage(`${hazardType.replace('_', ' ')} was set on the ${side} side!`);
 	// }
 
 	private handleCharacterDefeat(character: Character): void {
@@ -402,6 +403,7 @@ export class Battle {
 			newCharacter.trait.onEnterField(newCharacter, opponent, this);
 		}
 
+		this.applyHazardDamage(newCharacter);
 		return true;
 	}
 
@@ -423,9 +425,6 @@ export class Battle {
 
 		// Trigger turn end effects
 		this.processTurnEndEffects();
-
-		// Apply hazard damage
-		this.applyHazardDamage();
 
 		// Restore mana based on ambient magic
 		this.processAmbientMagicEffects();
@@ -502,34 +501,24 @@ export class Battle {
 		}
 	}
 
-	private applyHazardDamage(): void {
-		// Apply hazards to user side
+	private applyHazardDamage(character: Character): void {
 		for (const [hazardType, layers] of this.state.userHazards) {
-			const damage = this.calculateHazardDamage(hazardType as HazardType, layers);
+			const damage = this.calculateHazardDamage(hazardType, layers, character.maxHP);
 			if (damage > 0) {
 				this.state.userCharacter.takeDamage(damage);
-				this.logMessage(`${this.state.userCharacter.name} is hurt by ${hazardType.replace('_', ' ')}!`);
-			}
-		}
-
-		// Apply hazards to opponent side
-		for (const [hazardType, layers] of this.state.opponentHazards) {
-			const damage = this.calculateHazardDamage(hazardType as HazardType, layers);
-			if (damage > 0) {
-				this.state.opponentCharacter.takeDamage(damage);
-				this.logMessage(`${this.state.opponentCharacter.name} is hurt by ${hazardType.replace('_', ' ')}!`);
+				this.logMessage(`${this.state.userCharacter.name} is hurt by ${HazardNameMap[hazardType]}!`);
 			}
 		}
 	}
 
-	private calculateHazardDamage(hazardType: HazardType, layers: number): number {
+	private calculateHazardDamage(hazardType: HazardType, layers: number, health: number): number {
 		switch (hazardType) {
 			case 'mana_traps':
-				return Math.floor(((layers * 12.5) / 100) * 50); // Base 50 HP for calculation
+				return Math.floor(((layers * 12.5) / 100) * health);
 			case 'spiritual_spikes':
-				return Math.floor(((layers * 12.5) / 100) * 50);
+				return Math.floor(((layers * 12.5) / 100) * health);
 			case 'illusory_terrain':
-				return Math.floor(((layers * 6.25) / 100) * 50);
+				return Math.floor(((layers * 6.25) / 100) * health);
 			default:
 				return 0;
 		}
@@ -555,8 +544,8 @@ export class Battle {
 
 	public getWinnerName(): string {
 		const winner = this.getWinner();
-		if (winner === 'user') return this.player1DisplayName;
-		if (winner === 'opponent') return this.player2DisplayName;
+		if (winner === 'user') return this.user.displayName;
+		if (winner === 'opponent') return this.opponent.displayName;
 		return 'No winner yet';
 	}
 
@@ -570,8 +559,8 @@ export class Battle {
 			`**Battle Summary**\n` +
 			`• Winner: ${winner}\n` +
 			`• Duration: ${turnCount} turns\n` +
-			`• ${this.player1DisplayName} Characters Remaining: ${userCharactersLeft}/3\n` +
-			`• ${this.player2DisplayName} Characters Remaining: ${opponentCharactersLeft}/3`
+			`• ${this.user.displayName} Characters Remaining: ${userCharactersLeft}/3\n` +
+			`• ${this.opponent.displayName} Characters Remaining: ${opponentCharactersLeft}/3`
 		);
 	}
 
@@ -594,7 +583,7 @@ export class Battle {
 		}
 	}
 
-	// Environment effect methods
+	// TODO: Environment effect methods
 	public applyTerrainEffects(): void {
 		switch (this.state.terrain) {
 			case TerrainType.ForestCanopy:
@@ -620,7 +609,7 @@ export class Battle {
 	}
 
 	// Methods expected by the interface
-	public getCurrentCharacter(): Character | null {
+	public getUserCharacter(): Character | null {
 		// Return null if the current character is defeated and no auto-switch happened
 		if (this.state.userCharacter.isDefeated()) {
 			return null;
@@ -699,7 +688,7 @@ export class Battle {
 			throw new Error('Invalid winner specified');
 		}
 
-		this.logMessage(`Battle ended! Winner: ${winner === 'user' ? this.player1DisplayName : this.player2DisplayName}`);
+		this.logMessage(`Battle ended! Winner: ${winner === 'user' ? this.user.displayName : this.opponent.displayName}`);
 
 		// Force end the battle by defeating all characters of the losing side
 		if (winner === 'opponent') {
@@ -805,7 +794,7 @@ export class Battle {
 			return true;
 		}
 
-		const playerName = isUser ? this.player1DisplayName : this.player2DisplayName;
+		const playerName = isUser ? this.user.displayName : this.opponent.displayName;
 		this.logMessage(`${playerName} has no more characters able to battle!`);
 		return false;
 	}

@@ -40,77 +40,173 @@ export class Character {
 	metadata: CharacterMetadata;
 
 	// Getter properties for backwards compatibility
-	get analysisStacks(): number | undefined { return this.metadata.analysisStacks; }
-	set analysisStacks(value: number | undefined) { this.metadata.analysisStacks = value; }
-	
-	get perseveranceStacks(): number | undefined { return this.metadata.perseveranceStacks; }
-	set perseveranceStacks(value: number | undefined) { this.metadata.perseveranceStacks = value; }
-	
-	get chainStacks(): number | undefined { return this.metadata.chainStacks; }
-	set chainStacks(value: number | undefined) { this.metadata.chainStacks = value; }
-	
-	get eyeContactStacks(): number | undefined { return this.metadata.eyeContactStacks; }
-	set eyeContactStacks(value: number | undefined) { this.metadata.eyeContactStacks = value; }
-	
-	get observations(): number | undefined { return this.metadata.observations; }
-	set observations(value: number | undefined) { this.metadata.observations = value; }
-	
-	get resolve(): number | undefined { return this.metadata.resolve; }
-	set resolve(value: number | undefined) { this.metadata.resolve = value; }
-	
-	get theoryCount(): number | undefined { return this.metadata.theoryCount; }
-	set theoryCount(value: number | undefined) { this.metadata.theoryCount = value; }
-	
-	get barrierStrength(): number | undefined { return this.metadata.barrierStrength; }
-	set barrierStrength(value: number | undefined) { this.metadata.barrierStrength = value; }
-	
-	get armyStrength(): number | undefined { return this.metadata.armyStrength; }
-	set armyStrength(value: number | undefined) { this.metadata.armyStrength = value; }
-	
-	get manaSuppressed(): boolean | undefined { return this.metadata.manaSuppressed; }
-	set manaSuppressed(value: boolean | undefined) { this.metadata.manaSuppressed = value; }
-	
-	get ignoreManaSuppressed(): boolean | undefined { return this.metadata.ignoreManaSuppressed; }
-	set ignoreManaSuppressed(value: boolean | undefined) { this.metadata.ignoreManaSuppressed = value; }
-	
-	get empathyLearning(): boolean | undefined { return this.metadata.empathyLearning; }
-	set empathyLearning(value: boolean | undefined) { this.metadata.empathyLearning = value; }
-	
-	get reckless(): boolean | undefined { return this.metadata.reckless; }
-	set reckless(value: boolean | undefined) { this.metadata.reckless = value; }
-	
-	get dragonSlayerTraining(): boolean | undefined { return this.metadata.dragonSlayerTraining; }
-	set dragonSlayerTraining(value: boolean | undefined) { this.metadata.dragonSlayerTraining = value; }
-	
-	get demonLordAuthority(): boolean | undefined { return this.metadata.demonLordAuthority; }
-	set demonLordAuthority(value: boolean | undefined) { this.metadata.demonLordAuthority = value; }
-	
-	get heroicPresence(): boolean | undefined { return this.metadata.heroicPresence; }
-	set heroicPresence(value: boolean | undefined) { this.metadata.heroicPresence = value; }
-	
-	get divineProtection(): boolean | undefined { return this.metadata.divineProtection; }
-	set divineProtection(value: boolean | undefined) { this.metadata.divineProtection = value; }
-	
-	get highSpeedEscape(): boolean | undefined { return this.metadata.highSpeedEscape; }
-	set highSpeedEscape(value: boolean | undefined) { this.metadata.highSpeedEscape = value; }
-	
-	get resolveToKill(): boolean | undefined { return this.metadata.resolveToKill; }
-	set resolveToKill(value: boolean | undefined) { this.metadata.resolveToKill = value; }
-	
-	get memorySpecialist(): boolean | undefined { return this.metadata.memorySpecialist; }
-	set memorySpecialist(value: boolean | undefined) { this.metadata.memorySpecialist = value; }
-	
-	get grazeSpecialist(): boolean | undefined { return this.metadata.grazeSpecialist; }
-	set grazeSpecialist(value: boolean | undefined) { this.metadata.grazeSpecialist = value; }
-	
-	get overheal(): boolean | undefined { return this.metadata.overheal; }
-	set overheal(value: boolean | undefined) { this.metadata.overheal = value; }
-	
-	get divineBlessing(): boolean | undefined { return this.metadata.divineBlessing; }
-	set divineBlessing(value: boolean | undefined) { this.metadata.divineBlessing = value; }
-	
-	get pinnacleUnlocked(): boolean | undefined { return this.metadata.pinnacleUnlocked; }
-	set pinnacleUnlocked(value: boolean | undefined) { this.metadata.pinnacleUnlocked = value; }
+	get analysisStacks(): number | undefined {
+		return this.metadata.analysisStacks;
+	}
+	set analysisStacks(value: number | undefined) {
+		this.metadata.analysisStacks = value;
+	}
+
+	get perseveranceStacks(): number | undefined {
+		return this.metadata.perseveranceStacks;
+	}
+	set perseveranceStacks(value: number | undefined) {
+		this.metadata.perseveranceStacks = value;
+	}
+
+	get chainStacks(): number | undefined {
+		return this.metadata.chainStacks;
+	}
+	set chainStacks(value: number | undefined) {
+		this.metadata.chainStacks = value;
+	}
+
+	get eyeContactStacks(): number | undefined {
+		return this.metadata.eyeContactStacks;
+	}
+	set eyeContactStacks(value: number | undefined) {
+		this.metadata.eyeContactStacks = value;
+	}
+
+	get observations(): number | undefined {
+		return this.metadata.observations;
+	}
+	set observations(value: number | undefined) {
+		this.metadata.observations = value;
+	}
+
+	get resolve(): number | undefined {
+		return this.metadata.resolve;
+	}
+	set resolve(value: number | undefined) {
+		this.metadata.resolve = value;
+	}
+
+	get theoryCount(): number | undefined {
+		return this.metadata.theoryCount;
+	}
+	set theoryCount(value: number | undefined) {
+		this.metadata.theoryCount = value;
+	}
+
+	get barrierStrength(): number | undefined {
+		return this.metadata.barrierStrength;
+	}
+	set barrierStrength(value: number | undefined) {
+		this.metadata.barrierStrength = value;
+	}
+
+	get armyStrength(): number | undefined {
+		return this.metadata.armyStrength;
+	}
+	set armyStrength(value: number | undefined) {
+		this.metadata.armyStrength = value;
+	}
+
+	get manaSuppressed(): boolean | undefined {
+		return this.metadata.manaSuppressed;
+	}
+	set manaSuppressed(value: boolean | undefined) {
+		this.metadata.manaSuppressed = value;
+	}
+
+	get ignoreManaSuppressed(): boolean | undefined {
+		return this.metadata.ignoreManaSuppressed;
+	}
+	set ignoreManaSuppressed(value: boolean | undefined) {
+		this.metadata.ignoreManaSuppressed = value;
+	}
+
+	get empathyLearning(): boolean | undefined {
+		return this.metadata.empathyLearning;
+	}
+	set empathyLearning(value: boolean | undefined) {
+		this.metadata.empathyLearning = value;
+	}
+
+	get reckless(): boolean | undefined {
+		return this.metadata.reckless;
+	}
+	set reckless(value: boolean | undefined) {
+		this.metadata.reckless = value;
+	}
+
+	get dragonSlayerTraining(): boolean | undefined {
+		return this.metadata.dragonSlayerTraining;
+	}
+	set dragonSlayerTraining(value: boolean | undefined) {
+		this.metadata.dragonSlayerTraining = value;
+	}
+
+	get demonLordAuthority(): boolean | undefined {
+		return this.metadata.demonLordAuthority;
+	}
+	set demonLordAuthority(value: boolean | undefined) {
+		this.metadata.demonLordAuthority = value;
+	}
+
+	get heroicPresence(): boolean | undefined {
+		return this.metadata.heroicPresence;
+	}
+	set heroicPresence(value: boolean | undefined) {
+		this.metadata.heroicPresence = value;
+	}
+
+	get divineProtection(): boolean | undefined {
+		return this.metadata.divineProtection;
+	}
+	set divineProtection(value: boolean | undefined) {
+		this.metadata.divineProtection = value;
+	}
+
+	get highSpeedEscape(): boolean | undefined {
+		return this.metadata.highSpeedEscape;
+	}
+	set highSpeedEscape(value: boolean | undefined) {
+		this.metadata.highSpeedEscape = value;
+	}
+
+	get resolveToKill(): boolean | undefined {
+		return this.metadata.resolveToKill;
+	}
+	set resolveToKill(value: boolean | undefined) {
+		this.metadata.resolveToKill = value;
+	}
+
+	get memorySpecialist(): boolean | undefined {
+		return this.metadata.memorySpecialist;
+	}
+	set memorySpecialist(value: boolean | undefined) {
+		this.metadata.memorySpecialist = value;
+	}
+
+	get grazeSpecialist(): boolean | undefined {
+		return this.metadata.grazeSpecialist;
+	}
+	set grazeSpecialist(value: boolean | undefined) {
+		this.metadata.grazeSpecialist = value;
+	}
+
+	get overheal(): boolean | undefined {
+		return this.metadata.overheal;
+	}
+	set overheal(value: boolean | undefined) {
+		this.metadata.overheal = value;
+	}
+
+	get divineBlessing(): boolean | undefined {
+		return this.metadata.divineBlessing;
+	}
+	set divineBlessing(value: boolean | undefined) {
+		this.metadata.divineBlessing = value;
+	}
+
+	get pinnacleUnlocked(): boolean | undefined {
+		return this.metadata.pinnacleUnlocked;
+	}
+	set pinnacleUnlocked(value: boolean | undefined) {
+		this.metadata.pinnacleUnlocked = value;
+	}
 
 	constructor(data: Partial<Character>) {
 		this.id = data.id || '';
