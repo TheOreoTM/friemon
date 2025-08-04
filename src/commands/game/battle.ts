@@ -2,7 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { BattleManager } from '../../lib/battle/BattleManager';
-import { BattleCollector } from '../../lib/battle/BattleCollector';
+import { minutes } from '@src/lib/util/time';
 
 @ApplyOptions<Command.Options>({
 	description: 'Challenge another player to battle',
@@ -74,9 +74,25 @@ export class BattleCommand extends Command {
 			components: [actionRow]
 		});
 
-		// Create collector for challenge responses
-		const message = await reply.fetch();
-		BattleCollector.createChallengeCollector(message);
+		// Set up automatic expiration after 5 minutes
+		// The DiscordInteractionListener will handle the button clicks
+		setTimeout(async () => {
+			try {
+				const expiredEmbed = new EmbedBuilder()
+					.setTitle('⏰ Challenge Expired')
+					.setColor(0x95a5a6)
+					.setDescription('The battle challenge has expired.');
+
+				await interaction.editReply({
+					content: null,
+					embeds: [expiredEmbed],
+					components: []
+				});
+			} catch (error) {
+				// Interaction might have already been handled, ignore error
+				console.log('Challenge already handled or interaction expired');
+			}
+		}, minutes(5));
 
 		return reply;
 	}

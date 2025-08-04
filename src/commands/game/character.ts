@@ -3,6 +3,7 @@ import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
 import { CharacterRegistry } from '../../lib/characters/CharacterRegistry';
 import { getCharacterTier } from '../../lib/data/Characters';
+import type { CharacterName } from '@src/lib/metadata/CharacterName';
 
 @ApplyOptions<Command.Options>({
 	description: 'View and manage your characters',
@@ -14,33 +15,17 @@ export class CharacterCommand extends Command {
 			builder
 				.setName('character')
 				.setDescription('Character management commands')
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName('list')
-						.setDescription('View your character collection')
-				)
+				.addSubcommand((subcommand) => subcommand.setName('list').setDescription('View your character collection'))
 				.addSubcommand((subcommand) =>
 					subcommand
 						.setName('info')
 						.setDescription('View detailed character information')
 						.addStringOption((option) =>
-							option
-								.setName('name')
-								.setDescription('Character name to view')
-								.setRequired(true)
-								.setAutocomplete(true)
+							option.setName('name').setDescription('Character name to view').setRequired(true).setAutocomplete(true)
 						)
 				)
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName('team')
-						.setDescription('View or set your battle team')
-				)
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName('catalog')
-						.setDescription('View all available characters')
-				)
+				.addSubcommand((subcommand) => subcommand.setName('team').setDescription('View or set your battle team'))
+				.addSubcommand((subcommand) => subcommand.setName('catalog').setDescription('View all available characters'))
 		);
 	}
 
@@ -62,47 +47,48 @@ export class CharacterCommand extends Command {
 	}
 
 	private async handleList(interaction: Command.ChatInputCommandInteraction) {
-		// TODO: Fetch user's characters from database
-		// For now, show starter characters as owned
-		const ownedCharacters = CharacterRegistry.getStarterCharacters();
-		
+		await interaction.deferReply();
+		const ownedCharacters = await this.container.db.userCharacter.findMany({
+			where: { userId: interaction.user.id }
+		});
+
 		const embed = new EmbedBuilder()
 			.setTitle(`${interaction.user.username}'s Character Collection`)
 			.setColor(0x3498db)
-			.setDescription(ownedCharacters.length > 0 
-				? 'Your owned characters:' 
-				: 'You don\'t own any characters yet! Use `/shop` to get started.'
-			);
+			.setDescription(ownedCharacters.length > 0 ? 'Your owned characters:' : "You don't own any characters yet! Use `/shop` to get started.");
 
-		if (ownedCharacters.length > 0) {
-			ownedCharacters.forEach((char, index) => {
-				const displayInfo = char.getDisplayInfo();
-				const tier = getCharacterTier(displayInfo.name);
-				embed.addFields({
-					name: `${index + 1}. ${displayInfo.emoji} ${displayInfo.name}`,
-					value: `**Level:** ${displayInfo.level}\n**Races:** ${displayInfo.races.join(', ')}\n**Tier:** ${tier}`,
-					inline: true
-				});
+		const sortedCharacters = ownedCharacters.sort((a, b) => b.ivPercent - a.ivPercent);
+		const sortedCharactersList: string[] = [];
+
+		if (sortedCharacters.length > 0) {
+			sortedCharacters.forEach((char, index) => {
+				const characterData = CharacterRegistry.getCharacter(char.characterName as CharacterName);
+				if (!characterData) {
+					return;
+				}
+				const displayInfo = characterData.getDisplayInfo();
+				sortedCharactersList.push(
+					`\`${index}\`　${displayInfo.emoji}　${displayInfo.name}　•　Lvl. ${char.level}　•　${char.ivPercent.toFixed(2)}%`
+				);
 			});
 		}
 
+		embed.setDescription(sortedCharactersList.join('\n'));
 		embed.setFooter({ text: `Total Characters: ${ownedCharacters.length}` });
 
-		return interaction.reply({ embeds: [embed] });
+		return await interaction.editReply({ embeds: [embed] });
 	}
 
 	private async handleInfo(interaction: Command.ChatInputCommandInteraction) {
 		const characterName = interaction.options.getString('name', true);
-		
+
 		// Find character in the new system
-		const character = CharacterRegistry.getAllCharacters().find(char => 
-			char.characterName.toLowerCase() === characterName.toLowerCase()
-		);
+		const character = CharacterRegistry.getAllCharacters().find((char) => char.characterName.toLowerCase() === characterName.toLowerCase());
 
 		if (!character) {
-			return interaction.reply({ 
-				content: `Character "${characterName}" not found!`, 
-				ephemeral: true 
+			return interaction.reply({
+				content: `Character "${characterName}" not found!`,
+				ephemeral: true
 			});
 		}
 
@@ -112,7 +98,9 @@ export class CharacterCommand extends Command {
 		const embed = new EmbedBuilder()
 			.setTitle(`${displayInfo.emoji} ${displayInfo.name}`)
 			.setColor(displayInfo.color)
-			.setDescription(`**Tier:** ${tier}\n**Races:** ${displayInfo.races.join(', ')}\n\n${displayInfo.description || 'A skilled fighter ready for battle.'}`);
+			.setDescription(
+				`**Tier:** ${tier}\n**Races:** ${displayInfo.races.join(', ')}\n\n${displayInfo.description || 'A skilled fighter ready for battle.'}`
+			);
 
 		// Stats
 		embed.addFields(
@@ -135,13 +123,13 @@ export class CharacterCommand extends Command {
 			},
 			{
 				name: '🎯 Techniques',
-				value: character.techniques.length > 0 
-					? character.techniques.map(tech => `• **${tech.name}** (${tech.manaCost} MP)`).join('\n')
-					: 'No techniques learned',
+				value:
+					character.techniques.length > 0
+						? character.techniques.map((tech) => `• **${tech.name}** (${tech.manaCost} MP)`).join('\n')
+						: 'No techniques learned',
 				inline: true
 			}
 		);
-
 
 		embed.setFooter({ text: `Level: ${displayInfo.level} | Total Stats: ${displayInfo.statTotal}` });
 
@@ -152,10 +140,7 @@ export class CharacterCommand extends Command {
 		// TODO: Fetch user's current team from database
 		const team = CharacterRegistry.getStarterCharacters().slice(0, 3);
 
-		const embed = new EmbedBuilder()
-			.setTitle('Your Battle Team')
-			.setColor(0xe74c3c)
-			.setDescription('Your current battle team:');
+		const embed = new EmbedBuilder().setTitle('Your Battle Team').setColor(0xe74c3c).setDescription('Your current battle team:');
 
 		team.forEach((char, index) => {
 			const displayInfo = char.getDisplayInfo();
@@ -174,10 +159,10 @@ export class CharacterCommand extends Command {
 	private async handleCatalog(interaction: Command.ChatInputCommandInteraction) {
 		const characters = CharacterRegistry.getAllCharacters();
 		const totalCharacters = characters.length;
-		
+
 		// Group by tier (based on level)
 		const tierGroups: { [tier: string]: typeof characters } = {};
-		characters.forEach(char => {
+		characters.forEach((char) => {
 			const displayInfo = char.getDisplayInfo();
 			const tier = getCharacterTier(displayInfo.name);
 			if (!tierGroups[tier]) tierGroups[tier] = [];
@@ -191,13 +176,15 @@ export class CharacterCommand extends Command {
 
 		// Display by tier
 		const tierOrder = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
-		tierOrder.forEach(tier => {
+		tierOrder.forEach((tier) => {
 			if (tierGroups[tier] && tierGroups[tier].length > 0) {
-				const charList = tierGroups[tier].map(char => {
-					const info = char.getDisplayInfo();
-					return `${info.emoji} **${info.name}** (Lv.${info.level})`;
-				}).join('\n');
-				
+				const charList = tierGroups[tier]
+					.map((char) => {
+						const info = char.getDisplayInfo();
+						return `${info.emoji} **${info.name}** (Lv.${info.level})`;
+					})
+					.join('\n');
+
 				embed.addFields({
 					name: `${tier} Tier (${tierGroups[tier].length})`,
 					value: charList,
@@ -209,16 +196,14 @@ export class CharacterCommand extends Command {
 		return interaction.reply({ embeds: [embed] });
 	}
 
-
-
 	public override async autocompleteRun(interaction: Command.AutocompleteInteraction) {
 		const focusedValue = interaction.options.getFocused();
 		const characters = CharacterRegistry.getAllCharacters();
-		
+
 		const filtered = characters
-			.filter(char => char.characterName.toLowerCase().includes(focusedValue.toLowerCase()))
+			.filter((char) => char.characterName.toLowerCase().includes(focusedValue.toLowerCase()))
 			.slice(0, 25)
-			.map(char => {
+			.map((char) => {
 				const displayInfo = char.getDisplayInfo();
 				return {
 					name: `${displayInfo.emoji} ${char.characterName}`,

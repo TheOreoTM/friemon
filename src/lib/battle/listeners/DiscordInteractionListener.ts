@@ -1,6 +1,5 @@
 import { Client, Events, StringSelectMenuInteraction, ButtonInteraction } from 'discord.js';
-import { battleEvents } from '../BattleEventEmitter';
-import { BattleManager, type BattleSession } from '../BattleManager';
+import { BattleManager } from '../BattleManager';
 
 export class DiscordInteractionListener {
 	private client: Client;
@@ -12,125 +11,166 @@ export class DiscordInteractionListener {
 
 	private setupListeners(): void {
 		this.client.on(Events.InteractionCreate, async (interaction) => {
-			// Handle select menu interactions
-			if (interaction.isStringSelectMenu()) {
-				if (interaction.customId === 'battle_move_select') {
-					await this.handleBattleMoveSelect(interaction);
-				}
+			if (interaction.isButton()) {
+				await this.handleButtonInteraction(interaction);
 				return;
 			}
 
-			// Handle button interactions
-			if (interaction.isButton()) {
-				await this.handleButtonInteraction(interaction);
+			if (interaction.isStringSelectMenu()) {
+				await this.handleSelectMenuInteraction(interaction);
 				return;
 			}
 		});
 	}
 
-	private async handleBattleMoveSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-		const userId = interaction.user.id;
-		const session = BattleManager.getBattle(userId);
-
-		if (!session) {
-			await interaction.reply({
-				content: '❌ No active battle found!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Check if this interaction is in the correct player's channel
-		if (!this.isPlayerInCorrectChannel(interaction, session, userId)) {
-			await interaction.reply({
-				content: '❌ You can only select moves in your private battle channel!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Emit the move selected event - other listeners will handle the processing
-		battleEvents.emitMoveSelected(userId, interaction);
-	}
-
 	private async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
-		const userId = interaction.user.id;
-		const session = BattleManager.getBattle(userId);
-
-		if (!session) {
-			await interaction.reply({
-				content: '❌ No active battle found!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Check if this interaction is in the correct player's channel
-		if (!this.isPlayerInCorrectChannel(interaction, session, userId)) {
-			await interaction.reply({
-				content: '❌ You can only interact with battle controls in your private battle channel!',
-				ephemeral: true
-			});
-			return;
-		}
-
-		// Handle different button types
 		const customId = interaction.customId;
 
-		if (customId === 'battle_forfeit') {
-			await this.handleForfeitButton(interaction, session, userId);
+		if (customId.startsWith('make_action_')) {
+			await this.handleMakeActionButton(interaction);
 		} else if (customId.startsWith('switch_')) {
-			await this.handleTeamSwitchButton(interaction, session, userId, customId);
-		} else {
-			await interaction.reply({
-				content: '❌ Unknown button interaction!',
-				ephemeral: true
-			});
+			await this.handleSwitchButton(interaction);
+		} else if (customId.startsWith('forfeit_')) {
+			await this.handleForfeitButton(interaction);
+		} else if (customId.startsWith('challenge_')) {
+			await this.handleChallengeButton(interaction);
 		}
 	}
 
-	private async handleForfeitButton(interaction: ButtonInteraction, session: BattleSession, userId: string): Promise<void> {
-		// Execute forfeit action through BattleManager
-		const result = await BattleManager.executePlayerAction(userId, 'flee');
+	private async handleMakeActionButton(interaction: ButtonInteraction): Promise<void> {
+		const playerId = interaction.customId.replace('make_action_', '');
 
-		if (result.success) {
+		if (interaction.user.id !== playerId) {
 			await interaction.reply({
-				content: `🏳️ ${result.message}`,
-				ephemeral: false
-			});
-
-			// If battle is complete, emit battle completed event
-			if (result.battleComplete) {
-				const guild = interaction.guild;
-				if (guild) {
-					battleEvents.emitBattleCompleted(session, guild);
-				}
-			}
-		} else {
-			await interaction.reply({
-				content: `❌ ${result.message}`,
-				ephemeral: true
-			});
-		}
-	}
-
-	private async handleTeamSwitchButton(interaction: ButtonInteraction, session: BattleSession, userId: string, customId: string): Promise<void> {
-		// Extract position from customId (e.g., "switch_1" -> "1")
-		const positionMatch = customId.match(/switch_(\d+)/);
-		if (!positionMatch) {
-			await interaction.reply({
-				content: '❌ Invalid switch button!',
+				content: '❌ You can only make actions for yourself!',
 				ephemeral: true
 			});
 			return;
 		}
 
-		const position = parseInt(positionMatch[1]);
-		const isPlayer1 = userId === session.user.id;
-		const team = isPlayer1 ? session.battle.getUserCharacters() : session.battle.getOpponentCharacters();
+		const session = BattleManager.getBattle(playerId);
+		if (!session) {
+			await interaction.reply({
+				content: '❌ No active battle found!',
+				ephemeral: true
+			});
+			return;
+		}
 
-		// Get character at position (position is 1-indexed, array is 0-indexed)
-		const targetCharacter = team[position - 1];
+		if (session.playerActions.get(playerId)) {
+			await interaction.reply({
+				content: '✅ You have already selected your action for this turn!',
+				ephemeral: true
+			});
+			return;
+		}
+
+		// Send detailed move selection embed (ephemeral)
+		const moveEmbed = session.interface.createDetailedMoveSelectionEmbed(playerId, session);
+		const components = session.interface.createMoveSelectionComponents(playerId, session);
+
+		await interaction.reply({
+			embeds: [moveEmbed],
+			components: components,
+			ephemeral: true
+		});
+	}
+
+	private async handleSelectMenuInteraction(interaction: StringSelectMenuInteraction): Promise<void> {
+		const customId = interaction.customId;
+
+		if (customId.startsWith('select_technique_')) {
+			await this.handleTechniqueSelection(interaction);
+		}
+	}
+
+	private async handleTechniqueSelection(interaction: StringSelectMenuInteraction): Promise<void> {
+		const playerId = interaction.customId.replace('select_technique_', '');
+
+		if (interaction.user.id !== playerId) {
+			await interaction.reply({
+				content: '❌ You can only select techniques for yourself!',
+				ephemeral: true
+			});
+			return;
+		}
+
+		const session = BattleManager.getBattle(playerId);
+		if (!session) {
+			await interaction.reply({
+				content: '❌ No active battle found!',
+				ephemeral: true
+			});
+			return;
+		}
+
+		const selectedValue = interaction.values[0];
+
+		if (selectedValue.startsWith('disabled_')) {
+			const techniqueName = selectedValue.replace('disabled_', '');
+			await interaction.reply({
+				content: `❌ You don't have enough MP to use **${techniqueName}**!`,
+				ephemeral: true
+			});
+			return;
+		}
+
+		if (selectedValue.startsWith('attack_')) {
+			const techniqueName = selectedValue.replace('attack_', '');
+
+			const result = await BattleManager.executePlayerAction(playerId, 'attack', techniqueName);
+
+			if (result.success) {
+				await interaction.update({
+					content: `✅ **You selected:** ${techniqueName}\n\n*Return to the battle thread to see the results!*`,
+					embeds: [],
+					components: []
+				});
+
+				// Update main battle thread
+				await session.battleChannel?.sendPlayerReady(playerId);
+
+				// Check if both players are ready
+				const bothReady = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
+				if (bothReady) {
+					const turnResult = await BattleManager.processTurn(session);
+					if (!turnResult.success) {
+						console.error('Failed to process turn:', turnResult.message);
+					}
+				}
+			} else {
+				await interaction.reply({
+					content: `❌ ${result.message}`,
+					ephemeral: true
+				});
+			}
+		}
+	}
+
+	private async handleSwitchButton(interaction: ButtonInteraction): Promise<void> {
+		const [, position, playerId] = interaction.customId.split('_');
+
+		if (interaction.user.id !== playerId) {
+			await interaction.reply({
+				content: '❌ You can only switch your own characters!',
+				ephemeral: true
+			});
+			return;
+		}
+
+		const session = BattleManager.getBattle(playerId);
+		if (!session) {
+			await interaction.reply({
+				content: '❌ No active battle found!',
+				ephemeral: true
+			});
+			return;
+		}
+
+		const isPlayer1 = playerId === session.user.id;
+		const team = isPlayer1 ? session.battle.getUserCharacters() : session.battle.getOpponentCharacters();
+		const targetCharacter = team[parseInt(position) - 1];
+
 		if (!targetCharacter) {
 			await interaction.reply({
 				content: '❌ Invalid team position!',
@@ -139,28 +179,22 @@ export class DiscordInteractionListener {
 			return;
 		}
 
-		// Execute switch action through BattleManager
-		const result = await BattleManager.executePlayerAction(userId, 'switch', targetCharacter.name);
+		const result = await BattleManager.executePlayerAction(playerId, 'switch', targetCharacter.name);
 
 		if (result.success) {
-			await interaction.reply({
-				content: `🔄 ${result.message}`,
-				ephemeral: false
+			await interaction.update({
+				content: `✅ **You switched to:** ${targetCharacter.name}\n\n*Return to the battle thread to see the results!*`,
+				embeds: [],
+				components: []
 			});
 
-			// Check if both players have acted and process turn if needed
-			const bothPlayersActed = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
-			if (bothPlayersActed) {
+			await session.battleChannel?.sendPlayerReady(playerId);
+
+			const bothReady = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
+			if (bothReady) {
 				const turnResult = await BattleManager.processTurn(session);
-				if (turnResult.success) {
-					const guild = interaction.guild;
-					if (guild) {
-						if (turnResult.battleComplete) {
-							battleEvents.emitBattleCompleted(session, guild);
-						} else {
-							battleEvents.emitTurnComplete(session, guild);
-						}
-					}
+				if (!turnResult.success) {
+					console.error('Failed to process turn:', turnResult.message);
 				}
 			}
 		} else {
@@ -171,15 +205,70 @@ export class DiscordInteractionListener {
 		}
 	}
 
-	private isPlayerInCorrectChannel(interaction: StringSelectMenuInteraction | ButtonInteraction, session: BattleSession, userId: string): boolean {
-		const channelId = interaction.channelId;
+	private async handleForfeitButton(interaction: ButtonInteraction): Promise<void> {
+		const playerId = interaction.customId.replace('forfeit_', '');
 
-		if (userId === session.user.id) {
-			return channelId === session.player1Thread?.id;
-		} else if (userId === session.opponent.id) {
-			return channelId === session.player2Thread?.id;
+		if (interaction.user.id !== playerId) {
+			await interaction.reply({
+				content: '❌ You can only forfeit for yourself!',
+				ephemeral: true
+			});
+			return;
 		}
 
-		return false;
+		const result = await BattleManager.executePlayerAction(playerId, 'flee');
+
+		if (result.success) {
+			await interaction.update({
+				content: `🏳️ **You forfeited the battle!**\n\n*Check the battle thread for final results.*`,
+				embeds: [],
+				components: []
+			});
+		} else {
+			await interaction.reply({
+				content: `❌ ${result.message}`,
+				ephemeral: true
+			});
+		}
+	}
+
+	private async handleChallengeButton(interaction: ButtonInteraction): Promise<void> {
+		// Keep existing challenge logic from your current implementation
+		const [_, action, challengerId] = interaction.customId.split('_');
+		const responderId = interaction.user.id;
+
+		if (action === 'accept') {
+			if (responderId === challengerId) {
+				await interaction.reply({
+					content: '❌ You cannot accept your own challenge!',
+					ephemeral: true
+				});
+				return;
+			}
+
+			const session = await BattleManager.createPlayerBattle(challengerId, responderId, interaction.guild!);
+			const channelResult = await BattleManager.createBattleChannel(session, interaction.guild!);
+
+			if (!channelResult.success) {
+				await interaction.reply({
+					content: `❌ Failed to create battle channel: ${channelResult.message}`,
+					ephemeral: true
+				});
+				return;
+			}
+
+			await interaction.update({
+				content: `⚔️ **Battle Started!**\n🏟️ **Battle Thread:** <#${session.battleChannel?.getThread().id}>\n\n📱 **Click "Make Action" in the battle thread to select your moves!**`,
+				embeds: [],
+				components: []
+			});
+		} else if (action === 'decline') {
+			// Handle decline logic
+			await interaction.update({
+				content: `❌ **Challenge Declined** by ${interaction.user}`,
+				embeds: [],
+				components: []
+			});
+		}
 	}
 }

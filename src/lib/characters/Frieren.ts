@@ -7,13 +7,6 @@ import { Race, CombatCondition } from '../types/enums';
 import { ZOLTRAAK, ANALYSIS, VOLLZANBEL, MANA_SHIELD, GRAUSAMKEIT, DETECT_MAGIC } from '../techniques/SharedTechniques';
 import type { Battle } from '../battle/Battle';
 
-// Frieren-specific character interface with additional metadata
-interface FrierenCharacter extends Character {
-	analysisStacks: number;
-	manaSuppressed: boolean;
-	ignoreManaSuppressed: boolean;
-}
-
 const frierenStats = {
 	hp: 75,
 	attack: 45,
@@ -39,7 +32,7 @@ const frierenAbility: Ability = {
 	],
 
 	abilityEndOfTurnEffect: (character: Character, battle: Battle) => {
-		const frierenChar = character as FrierenCharacter;
+		const frierenChar = character;
 		// Gain 1 analysis stack at end of turn (max 10)
 		const currentStacks = frierenChar.analysisStacks || 0;
 		if (currentStacks < 10) {
@@ -49,7 +42,7 @@ const frierenAbility: Ability = {
 	},
 
 	abilityAfterOwnTechniqueUse: (character: Character, battle: Battle, technique: Technique) => {
-		const frierenChar = character as FrierenCharacter;
+		const frierenChar = character;
 		// Analysis techniques give extra stacks
 		if (technique.name === 'Analysis' || technique.name === 'Detect Magic') {
 			const currentStacks = frierenChar.analysisStacks || 0;
@@ -60,7 +53,7 @@ const frierenAbility: Ability = {
 	},
 
 	damageOutputMultiplier: (user: Character, _target: Character, technique: Technique) => {
-		const frierenChar = user as FrierenCharacter;
+		const frierenChar = user;
 		const stacks = frierenChar.analysisStacks || 0;
 		const multiplier = 1 + stacks * 0.07;
 

@@ -24,8 +24,12 @@ model User {
   losses   Int    @default(0)
   rank     String @default("Bronze")
 
-  // Owned characters - now using new system
-  characters UserCharacter[]
+  // Selected character relation (one-to-one)
+  selectedCharacterId String?        @unique
+  selectedCharacter   UserCharacter? @relation("SelectedCharacter", fields: [selectedCharacterId], references: [id])
+
+  // All user characters (one-to-many)
+  characters UserCharacter[] @relation("UserCharacters")
   battles    Battle[]        @relation("UserBattles")
 
   @@map("users")
@@ -34,7 +38,7 @@ model User {
 model UserCharacter {
   id     String @id @default(cuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserCharacters", fields: [userId], references: [id], onDelete: Cascade)
 
   // Character data - now references CharacterName enum values
   characterName String // References CharacterName enum (e.g., "Frieren", "Fern")
@@ -63,6 +67,9 @@ model UserCharacter {
   isStarter    Boolean @default(false) // Was this a starter character?
   obtainedFrom String? // "starter", "shop", "reward", "event", etc.
 
+  // Back-reference for selected character (one-to-one)
+  selectedByUser User? @relation("SelectedCharacter")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -80,7 +87,7 @@ model Battle {
   player1   User    @relation("UserBattles", fields: [player1Id], references: [id])
 
   // Battle settings
-  isAIBattle Boolean @default(true)
+  isAIBattle Boolean @default(false)
   aiMindset  String? // AIMindset enum value
 
   // Battle state

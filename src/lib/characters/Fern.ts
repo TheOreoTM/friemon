@@ -20,6 +20,7 @@ const QUICK_ZOLTRAAK = new Technique({
 	manaCost: 12,
 	initiative: 1,
 	effects: [],
+	targetType: 'single',
 	properties: { magicBased: true, rapid: true },
 	onUsed: ({ user, target, messageCache, session }) => {
 		const userName = session.interface.formatCharacterWithPlayer(user, session);
@@ -37,13 +38,13 @@ const QUICK_ZOLTRAAK = new Technique({
 		const stats = user.getEffectiveStats();
 		const targetStats = target!.getEffectiveStats();
 		let damage = Math.floor(stats.magicAttack - targetStats.magicDefense);
-		
+
 		// Rapid technique bonus (20% extra damage from ability)
 		damage = Math.floor(damage * 1.2);
-		
+
 		// Apply technique power
 		damage = Math.floor(damage * 0.65);
-		
+
 		// Add variance
 		damage = Math.floor(damage * (0.9 + Math.random() * 0.2));
 		damage = Math.max(1, damage);
@@ -51,7 +52,7 @@ const QUICK_ZOLTRAAK = new Technique({
 		// Apply damage with dramatic description
 		const oldHP = target!.currentHP;
 		target!.takeDamage(damage);
-		
+
 		messageCache.push(`⚡ **"Zoltraak!" ${userName} unleashes rapid magical projectiles!**`);
 		messageCache.pushDamage(userName, targetName, damage, target!.currentHP);
 
@@ -78,6 +79,7 @@ const MANA_CONTROL = new Technique({
 	precision: 1.0,
 	manaCost: 8,
 	initiative: 0,
+	targetType: 'single',
 	effects: [createStatBoostEffect('magicAttack', 1, 1.0, EffectTarget.Self)],
 	properties: { magicBased: true },
 	onUsed: ({ user, messageCache, session }) => {
@@ -102,7 +104,8 @@ const MANA_CONTROL = new Technique({
 		messageCache.push(`🔮 **${userName}'s next magical techniques will be more powerful!**`);
 
 		// Prodigious Talent passive check
-		if (Math.random() < 0.4) { // Higher chance for support spells
+		if (Math.random() < 0.4) {
+			// Higher chance for support spells
 			const bonusMana = Math.floor(user.maxMana * 0.05);
 			user.restoreMana(bonusMana);
 			messageCache.push(`✨ **Fern's Prodigious Talent**: Her natural efficiency grants ${bonusMana} bonus MP!`);

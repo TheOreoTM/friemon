@@ -442,6 +442,220 @@ export class BattleInterface {
 		return embed;
 	}
 
+	public createDetailedMoveSelectionEmbed(playerId: string, session: BattleSession): EmbedBuilder {
+		const isPlayer1 = playerId === session.user.id;
+		const playerName = isPlayer1 ? session.user.displayName : session.opponent.displayName;
+		const character = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		const opponentCharacter = isPlayer1 ? this.battle.state.opponentCharacter : this.battle.state.userCharacter;
+		const opponentName = isPlayer1 ? session.opponent.displayName : session.user.displayName;
+
+		const embed = new EmbedBuilder()
+			.setTitle(`⚔️ ${playerName} - Choose Your Action`)
+			.setColor(0x3498db)
+			.setDescription(`**Turn ${session.currentTurn}** - Select your move carefully!`);
+
+		// Character Stats Section
+		const stats = character.getEffectiveStats();
+		const hpBar = this.createHPBar(character);
+		const manaBar = this.createManaBar(character);
+		const conditions = character.getActiveConditions();
+		const conditionText = conditions.length > 0 ? `\n🎭 **Status:** ${conditions.join(', ')}` : '';
+
+		embed.addFields({
+			name: `👑 ${character.name} (Level ${character.level})`,
+			value: [
+				`${hpBar} **${character.currentHP}**/**${character.maxHP}** HP`,
+				`${manaBar} **${character.currentMana}**/**${character.maxMana}** MP${conditionText}`
+			].join('\n'),
+			inline: false
+		});
+
+		// Detailed Battle Stats
+		embed.addFields({
+			name: '📊 Combat Statistics',
+			value: [
+				`⚔️ **Attack:** ${stats.attack}`,
+				`🛡️ **Defense:** ${stats.defense}`,
+				`🔮 **Magic Attack:** ${stats.magicAttack}`,
+				`✨ **Magic Defense:** ${stats.magicDefense}`,
+				`💨 **Speed:** ${stats.speed}`
+			].join('\n'),
+			inline: true
+		});
+
+		// Opponent Intel
+		const oppStats = opponentCharacter.getEffectiveStats();
+		const oppHpPercent = Math.round((opponentCharacter.currentHP / opponentCharacter.maxHP) * 100);
+		const oppManaPercent = Math.round((opponentCharacter.currentMana / opponentCharacter.maxMana) * 100);
+		const oppConditions = opponentCharacter.getActiveConditions();
+		const oppConditionText = oppConditions.length > 0 ? `\n🎭 ${oppConditions.join(', ')}` : '';
+
+		embed.addFields({
+			name: `👀 ${opponentName}'s ${opponentCharacter.name}`,
+			value: [
+				`❤️ **HP:** ${oppHpPercent}% (${opponentCharacter.currentHP}/${opponentCharacter.maxHP})`,
+				`💙 **MP:** ${oppManaPercent}% (${opponentCharacter.currentMana}/${opponentCharacter.maxMana})`,
+				`🛡️ **Defense:** ${oppStats.defense} | ✨ **Mag Def:** ${oppStats.magicDefense}`,
+				`💨 **Speed:** ${oppStats.speed}${oppConditionText}`
+			].join('\n'),
+			inline: true
+		});
+
+		// Available Techniques
+		const availableTechniques = character.techniques.filter((tech) => character.currentMana >= tech.manaCost);
+		const unavailableTechniques = character.techniques.filter((tech) => character.currentMana < tech.manaCost);
+
+		if (availableTechniques.length > 0) {
+			const techniqueList = availableTechniques
+				.slice(0, 6)
+				.map((tech) => {
+					const damageType = tech.affinity.includes('Physical') ? '⚔️' : '🔮';
+					const powerText = tech.power > 0 ? ` | ${tech.power} power` : '';
+					const accuracyText = tech.precision < 1.0 ? ` | ${Math.round(tech.precision * 100)}%` : '';
+					return `${damageType} **${tech.name}** (${tech.manaCost} MP)${powerText}${accuracyText}`;
+				})
+				.join('\n');
+
+			embed.addFields({
+				name: `🎯 Available Techniques (${availableTechniques.length})`,
+				value: techniqueList,
+				inline: false
+			});
+		}
+
+		if (unavailableTechniques.length > 0) {
+			const unavailableList = unavailableTechniques
+				.slice(0, 3)
+				.map((tech) => {
+					return `❌ **${tech.name}** (Need ${tech.manaCost} MP)`;
+				})
+				.join('\n');
+
+			embed.addFields({
+				name: '💔 Insufficient MP',
+				value: unavailableList,
+				inline: false
+			});
+		}
+
+		// Team Status
+		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
+		const teamStatus = team
+			.map((char, index) => {
+				const position = index + 1;
+				const isActive = char === character;
+				const hpPercent = Math.round((char.currentHP / char.maxHP) * 100);
+				const status = char.isDefeated() ? '💀' : isActive ? '👑' : hpPercent < 30 ? '🩸' : '✅';
+				return `${status} **${position}. ${char.name}** (${hpPercent}% HP)`;
+			})
+			.join('\n');
+
+		embed.addFields({
+			name: '👥 Your Team',
+			value: teamStatus,
+			inline: false
+		});
+
+		embed.setFooter({
+			text: '💡 Choose wisely! Consider MP costs, opponent defenses, and team strategy.'
+		});
+
+		return embed;
+	}
+
+	public createMoveSelectionComponents(playerId: string, session: BattleSession): ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] {
+		const isPlayer1 = playerId === session.user.id;
+		const character = isPlayer1 ? this.battle.state.userCharacter : this.battle.state.opponentCharacter;
+		const components: ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] = [];
+
+		// Technique Selection Menu
+		const techniqueOptions: Array<{ label: string; value: string; description: string; emoji?: string }> = [];
+
+		character.techniques.forEach((technique) => {
+			const canUse = character.currentMana >= technique.manaCost;
+			if (canUse) {
+				let description = `${technique.affinity}`;
+				if (technique.power > 0) {
+					description += ` | ${technique.power} power`;
+				}
+				description += ` | ${technique.manaCost} MP`;
+
+				if (technique.precision < 1.0) {
+					const accuracyPercent = Math.round(technique.precision * 100);
+					description += ` | ${accuracyPercent}% accuracy`;
+				}
+
+				techniqueOptions.push({
+					label: technique.name,
+					value: `attack_${technique.name}`,
+					description: description.slice(0, 100), // Discord limit
+					emoji: this.getAffinityEmoji(technique.affinity)
+				});
+			} else {
+				// Show a few disabled techniques
+				if (techniqueOptions.length < 20) {
+					techniqueOptions.push({
+						label: `${technique.name} (No MP)`,
+						value: `disabled_${technique.name}`,
+						description: `Requires ${technique.manaCost} MP (you have ${character.currentMana})`,
+						emoji: '💔'
+					});
+				}
+			}
+		});
+
+		if (techniqueOptions.length > 0) {
+			const selectMenu = new StringSelectMenuBuilder()
+				.setCustomId(`select_technique_${playerId}`)
+				.setPlaceholder('Choose a technique...')
+				.addOptions(techniqueOptions.slice(0, 25)); // Discord limit
+
+			components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
+		}
+
+		// Team Switch Buttons
+		const team = isPlayer1 ? this.battle.getUserCharacters() : this.battle.getOpponentCharacters();
+		const switchButtons = team.map((char, index) => {
+			const position = index + 1;
+			const isActive = char === character;
+			const isDead = char.isDefeated();
+
+			let style: ButtonStyle;
+			let disabled = false;
+
+			if (isActive) {
+				style = ButtonStyle.Success;
+				disabled = true;
+			} else if (isDead) {
+				style = ButtonStyle.Danger;
+				disabled = true;
+			} else {
+				style = ButtonStyle.Secondary;
+			}
+
+			return new ButtonBuilder()
+				.setCustomId(`switch_${position}_${playerId}`)
+				.setLabel(`${position}. ${char.name}`)
+				.setStyle(style)
+				.setDisabled(disabled);
+		});
+
+		if (switchButtons.length > 0) {
+			components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...switchButtons));
+		}
+
+		// Forfeit Button
+		const forfeitButton = new ButtonBuilder()
+			.setCustomId(`forfeit_${playerId}`)
+			.setLabel('Forfeit Battle')
+			.setStyle(ButtonStyle.Danger)
+			.setEmoji('🏳️');
+
+		components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(forfeitButton));
+
+		return components;
+	}
+
 	public createBattleResultEmbed(session: BattleSession): EmbedBuilder {
 		const winner = this.battle.getWinner();
 		const winnerName = this.battle.getWinnerName();

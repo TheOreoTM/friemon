@@ -7,19 +7,21 @@ import { TechniqueContext } from './TechniqueContext';
 
 export class Technique {
 	name: string;
+	description: string;
 	affinity: Affinity;
 	category: TechniqueCategory;
 	power: number;
 	precision: number;
 	manaCost: number;
 	initiative: number;
+	levelRequirement: number;
 	effects: TechniqueEffect[];
 	properties: { [key in TechniqueProperty]?: boolean };
 	targetType: TargetType;
-	multiTargetCount?: number; // How many targets for multiTarget techniques (default 2)
-	description: string;
+	multiTargetCount?: number;
 	execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
 	onUsed?: (context: TechniqueContext) => void;
+	onHit?: (context: TechniqueContext) => void;
 
 	constructor(data: {
 		name: string;
@@ -28,6 +30,7 @@ export class Technique {
 		power: number;
 		precision: number;
 		manaCost: number;
+		levelRequirement?: number;
 		initiative?: number; // Priority
 		effects?: TechniqueEffect[];
 		properties?: { [key in TechniqueProperty]?: boolean };
@@ -36,6 +39,7 @@ export class Technique {
 		description: string;
 		execute?: (user: Character, target: Character, battle: Battle, technique: Technique) => boolean;
 		onUsed?: (context: TechniqueContext) => void;
+		onHit?: (context: TechniqueContext) => void;
 	}) {
 		this.name = data.name;
 		this.affinity = data.affinity;
@@ -43,6 +47,7 @@ export class Technique {
 		this.power = data.power;
 		this.precision = data.precision;
 		this.manaCost = data.manaCost;
+		this.levelRequirement = data.levelRequirement || 1;
 		this.initiative = data.initiative || 0;
 		this.effects = data.effects || [];
 		this.properties = data.properties || {};
@@ -51,6 +56,7 @@ export class Technique {
 		this.description = data.description;
 		this.execute = data.execute;
 		this.onUsed = data.onUsed;
+		this.onHit = data.onHit;
 	}
 
 	canUse(user: Character): boolean {

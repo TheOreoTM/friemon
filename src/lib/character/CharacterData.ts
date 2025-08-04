@@ -1,12 +1,15 @@
 import { Character } from './Character';
 import { Technique } from './Technique';
-import { Race, CombatCondition } from '../types/enums';
+import { Race, CombatCondition, type Affinity } from '../types/enums';
 import { Stats } from '../types/interfaces';
 import { CharacterName } from '../metadata/CharacterName';
 import { CharacterEmoji } from '../metadata/CharacterEmoji';
 import { generateRandomLevel, generateStartingXP } from '../util/levelGeneration';
 import { LEVEL_CONSTANTS } from '../util/constants';
 import type { Battle } from '../battle/Battle';
+import type { UserCharacter } from '@prisma/client';
+import { randomInt } from '../util/utils';
+import { container } from '@sapphire/framework';
 
 // ============== COSMETIC & DISPLAY ==============
 
@@ -81,8 +84,10 @@ export interface CharacterMetadata {
 export interface CharacterDataOptions {
 	characterName: CharacterName;
 	cosmetic: CharacterCosmetic;
-	level: number;
+	level?: number;
 	races: Race[];
+	resistances?: Affinity[];
+	weaknesses?: Affinity[];
 	baseStats: Stats;
 	techniques: Technique[];
 	ability: Ability;
@@ -98,6 +103,8 @@ export class CharacterData {
 	public readonly cosmetic: CharacterCosmetic;
 	public readonly level: number;
 	public readonly races: Race[];
+	public readonly resistances: Affinity[];
+	public readonly weaknesses: Affinity[];
 	public readonly baseStats: Stats;
 	public readonly techniques: Technique[];
 	public readonly ability: Ability;
@@ -106,8 +113,10 @@ export class CharacterData {
 	constructor(options: CharacterDataOptions) {
 		this.characterName = options.characterName;
 		this.cosmetic = options.cosmetic;
-		this.level = options.level;
+		this.level = options.level || 1;
 		this.races = options.races;
+		this.resistances = options.resistances || [];
+		this.weaknesses = options.weaknesses || [];
 		this.baseStats = options.baseStats;
 		this.techniques = options.techniques;
 		this.ability = options.ability;
@@ -128,6 +137,12 @@ export class CharacterData {
 
 		if (!this.races || this.races.length === 0 || this.races.length > 3) {
 			throw new Error('Character must have 1-3 races');
+		}
+
+		// Validate resistances and weaknesses don't overlap
+		const overlap = this.resistances.filter((r) => this.weaknesses.includes(r));
+		if (overlap.length > 0) {
+			throw new Error(`Character cannot be both resistant and weak to: ${overlap.join(', ')}`);
 		}
 
 		if (!this.baseStats) {
@@ -163,6 +178,8 @@ export class CharacterData {
 			level: randomLevel,
 			currentXP: randomXP,
 			races: [...this.races],
+			resistances: [...this.resistances],
+			weaknesses: [...this.weaknesses],
 			maxHP: this.baseStats.hp,
 			currentHP: this.baseStats.hp,
 			maxMana: Math.floor(this.baseStats.hp * 0.6),
@@ -204,7 +221,104 @@ export class CharacterData {
 	}
 
 	/**
+	 * Creates a UserCharacter in the database with random IVs
+	 */
+	public async createUserCharacter(
+		userId: string,
+		options: {
+			setSelected?: boolean;
+			isStarter?: boolean;
+			obtainedFrom?: string;
+			nickname?: string;
+			level?: number;
+		} = {}
+	): Promise<UserCharacter> {
+		const { isStarter = false, obtainedFrom = 'unknown', nickname = null, level = 1, setSelected = false } = options;
+
+		const hpIv = randomInt(1, 31);
+		const atkIv = randomInt(1, 31);
+		const defIv = randomInt(1, 31);
+		const mgAtkIv = randomInt(1, 31);
+		const mgDefIv = randomInt(1, 31);
+		const spdIv = randomInt(1, 31);
+
+		const totalIV = hpIv + atkIv + defIv + mgAtkIv + mgDefIv + spdIv;
+		const ivPercent = (totalIV / 186) * 100; // 186 is max possible (31 * 6)
+
+		// Create the character in the database
+		const userCharacter = await container.db.userCharacter.create({
+			data: {
+				userId: userId,
+				characterName: this.characterName,
+				level: level,
+				currentXP: level === 1 ? 0 : generateStartingXP(level),
+				maxHP: this.baseStats.hp,
+				maxMana: Math.floor(this.baseStats.hp * 0.6),
+				hpIv: hpIv,
+				atkIv: atkIv,
+				defIv: defIv,
+				mgAtkIv: mgAtkIv,
+				mgDefIv: mgDefIv,
+				spdIv: spdIv,
+				totalIV: totalIV,
+				ivPercent: ivPercent,
+				nickname: nickname,
+				isStarter: isStarter,
+				obtainedFrom: obtainedFrom
+			}
+		});
+
+		if (setSelected) {
+			await container.db.user.update({
+				where: { id: userId },
+				data: { selectedCharacterId: userCharacter.id }
+			});
+		}
+
+		// Update character collection
+		await container.db.characterCollection.upsert({
+			where: {
+				userId_characterName: {
+					userId: userId,
+					characterName: this.characterName
+				}
+			},
+			create: {
+				userId: userId,
+				characterName: this.characterName,
+				timesObtained: 1,
+				firstObtained: new Date()
+			},
+			update: {
+				timesObtained: { increment: 1 }
+			}
+		});
+
+		return userCharacter;
+	}
+
+	/**
+	 * Creates a UserCharacter with completely random level (for gacha/rewards)
+	 */
+	public async createRandomUserCharacter(
+		userId: string,
+		options: {
+			obtainedFrom?: string;
+			nickname?: string;
+		} = {}
+	): Promise<UserCharacter> {
+		const randomLevel = generateRandomLevel();
+
+		return this.createUserCharacter(userId, {
+			...options,
+			level: randomLevel,
+			isStarter: false
+		});
+	}
+
+	/**
 	 * Creates a Character instance from this CharacterData
+	 * @deprecated Use createCharacterWithRandomLevel instead
 	 */
 	public createCharacter(): Character {
 		const character = new Character({
@@ -214,6 +328,8 @@ export class CharacterData {
 			level: this.level,
 			currentXP: 0,
 			races: [...this.races],
+			resistances: [...this.resistances],
+			weaknesses: [...this.weaknesses],
 			maxHP: this.baseStats.hp,
 			currentHP: this.baseStats.hp,
 			maxMana: Math.floor(this.baseStats.hp * 0.6),
@@ -264,6 +380,8 @@ export class CharacterData {
 			description: this.cosmetic.description,
 			level: this.level,
 			races: this.races,
+			resistances: this.resistances,
+			weaknesses: this.weaknesses,
 			statTotal: Object.values(this.baseStats).reduce((sum, stat) => sum + stat, 0),
 			ability: this.ability.abilityName,
 			abilityDescription: this.ability.abilityEffectString,
@@ -280,11 +398,20 @@ export class CharacterData {
 			cosmetic: { ...this.cosmetic },
 			level: this.level,
 			races: [...this.races],
+			resistances: [...this.resistances],
+			weaknesses: [...this.weaknesses],
 			baseStats: { ...this.baseStats },
 			techniques: [...this.techniques],
 			ability: { ...this.ability },
 			additionalMetadata: { ...this.additionalMetadata }
 		});
+	}
+
+	/**
+	 * Check if this character can learn a specific technique
+	 */
+	public canLearnTechnique(technique: Technique): boolean {
+		return !technique.levelRequirement || this.level >= technique.levelRequirement;
 	}
 
 	/**
@@ -345,5 +472,39 @@ export class CharacterData {
 		}
 
 		return effectiveStats;
+	}
+
+	/**
+	 * Check if this character has a specific race
+	 */
+	public hasRace(race: Race): boolean {
+		return this.races.includes(race);
+	}
+
+	/**
+	 * Check if character is resistant to a specific element/type
+	 */
+	public isResistantTo(element: Affinity): boolean {
+		return this.resistances.includes(element);
+	}
+
+	/**
+	 * Check if character is weak to a specific element/type
+	 */
+	public isWeakTo(element: Affinity): boolean {
+		return this.weaknesses.includes(element);
+	}
+
+	/**
+	 * Get damage multiplier for a specific element/type
+	 */
+	public getDamageMultiplier(element: Affinity): number {
+		if (this.isResistantTo(element)) {
+			return 0.5; // 50% damage
+		}
+		if (this.isWeakTo(element)) {
+			return 2.0; // 200% damage
+		}
+		return 1.0; // Normal damage
 	}
 }

@@ -6,12 +6,6 @@ import { Race } from '../types/enums';
 import type { Battle } from '../battle/Battle';
 import { ZOLTRAAK, ANALYSIS, MANA_SHIELD } from '../techniques/SharedTechniques';
 
-// Edel-specific character interface with additional metadata
-interface EdelCharacter extends Character {
-	eyeContactStacks: number;
-	memorySpecialist: boolean;
-}
-
 const edelStats = {
 	hp: 70,
 	attack: 55,
@@ -33,7 +27,7 @@ const edelAbility: Ability = {
 	],
 
 	abilityStartOfTurnEffect: (character: Character, battle: Battle) => {
-		const edelChar = character as EdelCharacter;
+		const edelChar = character;
 		const eyeContact = edelChar.eyeContactStacks || 0;
 		if (eyeContact > 0) {
 			edelChar.eyeContactStacks = eyeContact - 1;

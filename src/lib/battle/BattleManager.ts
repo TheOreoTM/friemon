@@ -2,12 +2,12 @@ import { Battle } from './Battle';
 import { BattleInterface } from './BattleInterface';
 import { Character } from '../character/Character';
 import { CharacterRegistry } from '../characters/CharacterRegistry';
-import { battleEvents } from './BattleEventEmitter';
 import { BattleActionType, PlayerAction, ActionExecutionResult } from '../types/interfaces';
 import { BattleMessageCache, MessageTarget } from './BattleMessageCache';
 import { AmbientMagicCondition, TerrainType } from '../types/enums';
-import { ChannelType, type Guild, type User, type ThreadChannel } from 'discord.js';
-import { GAME_CHANNEL_ID, BATTLE_CONSTANTS } from '../util/constants';
+import { type Guild, type User } from 'discord.js';
+import { BATTLE_CONSTANTS } from '../util/constants';
+import { BattleChannel } from './BattleChannel';
 
 export interface BattleSession {
 	id: string;
@@ -21,9 +21,7 @@ export interface BattleSession {
 	playerActions: Map<string, boolean>;
 	pendingActions: Map<string, PlayerAction>;
 	currentTurn: number;
-	player1Thread?: ThreadChannel;
-	player2Thread?: ThreadChannel;
-	battleLogThread?: ThreadChannel;
+	battleChannel?: BattleChannel;
 }
 
 export class BattleManager {
@@ -85,10 +83,7 @@ export class BattleManager {
 				]),
 				pendingActions: new Map(),
 				currentTurn: 1,
-				// Thread IDs will be set when threads are created
-				player1Thread: undefined,
-				player2Thread: undefined,
-				battleLogThread: undefined
+				battleChannel: undefined
 			};
 
 			// Store battle for both players
@@ -253,37 +248,22 @@ export class BattleManager {
 	public static async processTurn(session: BattleSession): Promise<ActionExecutionResult> {
 		const { battle } = session;
 
-		// Check if both players have acted
 		const bothPlayersActed = session.playerActions.get(session.user.id) && session.playerActions.get(session.opponent.id);
-
 		if (!bothPlayersActed) {
 			return { success: false, message: 'Not all players have acted yet' };
 		}
 
 		try {
-			console.log(`Processing turn ${session.currentTurn} for battle ${session.id}`);
-
-			// Log turn action phase
-			battle.addToBattleLog(`=== Turn ${session.currentTurn} Action Phase ===`);
-
-			// Execute both players' actions (this will log to battle internally)
 			await this.executeTurnActions(session);
-
-			// Process turn end effects and move to next turn
 			battle.nextTurn();
-
-			// Increment session turn counter AFTER battle processes its turn
 			session.currentTurn++;
 
-			console.log(`Turn processed. New turn: ${session.currentTurn}, Battle turn: ${battle.state.turn}`);
-
-			// Reset for next turn
 			session.playerActions.set(session.user.id, false);
 			session.playerActions.set(session.opponent.id, false);
 			session.pendingActions.clear();
 
-			// Check if battle is complete
 			if (battle.isComplete()) {
+				await session.battleChannel?.sendBattleComplete();
 				this.endBattle(session.user.id);
 				this.endBattle(session.opponent.id);
 				return {
@@ -291,6 +271,8 @@ export class BattleManager {
 					message: 'Battle complete!',
 					battleComplete: true
 				};
+			} else {
+				await session.battleChannel?.sendTurnStart();
 			}
 
 			return {
@@ -391,19 +373,16 @@ export class BattleManager {
 	}
 
 	/**
-	 * Sends an individual action message to the battle log channel
+	 * Sends an individual action message to the battle channel
 	 */
 	private static async sendActionMessage(session: BattleSession, message: string): Promise<void> {
 		try {
-			if (session.battleLogThread) {
-				await session.battleLogThread.send(message);
+			if (session.battleChannel) {
+				await session.battleChannel.sendActionMessage(message);
 			}
 		} catch (error) {
-			console.error('Error sending action message directly:', error);
+			console.error('Error sending action message to battle channel:', error);
 		}
-
-		// Fallback to event system
-		battleEvents.emitActionMessage(session.id, message);
 	}
 
 	/**
@@ -555,128 +534,29 @@ export class BattleManager {
 		}
 	}
 
-	public static async createBattleThreads(
-		session: BattleSession,
-		guild: Guild
-	): Promise<{ success: boolean; message: string; threads?: { player1: ThreadChannel; player2: ThreadChannel; battleLog: ThreadChannel } }> {
-		if (!session) {
-			return { success: false, message: 'Battle session not found!' };
-		}
-
+	public static async createBattleChannel(session: BattleSession, guild: Guild): Promise<{ success: boolean; message: string }> {
 		try {
-			const battleId = session.id.split('_')[0]; // Use first part of session ID
-
-			// Find a suitable parent channel for creating threads
-			// Look for a general channel or use the first text channel
-			let parentChannel = guild.channels.cache.get(GAME_CHANNEL_ID);
-			if (!parentChannel) {
-				throw new Error('No suitable parent channel found for creating threads');
-			}
-
-			if (parentChannel.type !== ChannelType.GuildText) {
-				throw new Error('Parent channel must be a text channel');
-			}
-
-			const player1 = guild.members.cache.get(session.user.id);
-			if (!player1) {
-				throw new Error('Player 1 not found in guild');
-			}
-
-			const player2 = guild.members.cache.get(session.opponent.id);
-			if (!player2) {
-				throw new Error('Player 2 not found in guild');
-			}
-
-			// Create private thread for Player 1
-			const player1Thread = await parentChannel.threads!.create({
-				name: `🎯 Battle ${battleId} - ${player1.user.username} Moves`,
-				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
-				type: ChannelType.PrivateThread,
-				reason: `Private move selection for Player 1 in battle ${battleId}`,
-				invitable: false
-			});
-
-			// Add Player 1 to their private thread
-			await player1Thread.members.add(session.user.id);
-
-			// Create private thread for Player 2
-			const player2Thread = await parentChannel.threads!.create({
-				name: `🎯 Battle ${battleId} - ${player2.user.username} Moves`,
-				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
-				type: ChannelType.PrivateThread,
-				reason: `Private move selection for Player 2 in battle ${battleId}`,
-				invitable: false
-			});
-
-			// Add Player 2 to their private thread
-			await player2Thread.members.add(session.opponent.id);
-
-			// Create public thread for battle log
-			const battleLogThread = await parentChannel.threads!.create({
-				name: `⚔️ ${player1.user.username} vs ${player2.user.username}`,
-				autoArchiveDuration: BATTLE_CONSTANTS.THREAD_AUTO_ARCHIVE_DURATION,
-				type: ChannelType.PrivateThread,
-				reason: `Public battle log for battle ${battleId}`
-			});
-
-			// Add both players to the public main thread
-			await battleLogThread.members.add(session.user.id);
-			await battleLogThread.members.add(session.opponent.id);
-
-			// Update session with thread IDs
-			session.player1Thread = player1Thread;
-			session.player2Thread = player2Thread;
-			session.battleLogThread = battleLogThread;
-
-			// Emit event that threads have been created
-			battleEvents.emitChannelsCreated(session, guild);
+			const battleChannel = await BattleChannel.create(session, guild);
+			session.battleChannel = battleChannel;
 
 			return {
 				success: true,
-				message: 'Battle threads created successfully!',
-				threads: {
-					player1: player1Thread,
-					player2: player2Thread,
-					battleLog: battleLogThread
-				}
+				message: 'Battle channel created successfully!'
 			};
 		} catch (error) {
-			console.error('Error creating battle threads:', error);
-			return { success: false, message: 'Failed to create battle threads' };
+			console.error('Error creating battle channel:', error);
+			return {
+				success: false,
+				message: 'Failed to create battle channel'
+			};
 		}
 	}
 
-	public static async cleanupBattleThreads(sessionId: string): Promise<void> {
+	public static async cleanupBattleChannel(sessionId: string): Promise<void> {
 		const session = this.getBattle(sessionId);
-		if (!session) return;
-
-		try {
-			// Archive and lock threads instead of deleting them
-			// This preserves battle history while preventing further interaction
-
-			if (session.player1Thread) {
-				const thread1 = session.player1Thread;
-				if (thread1 && thread1.isThread()) {
-					await thread1.setArchived(true, 'Battle completed');
-					await thread1.setLocked(true);
-				}
-			}
-
-			if (session.player2Thread) {
-				const thread2 = session.player2Thread;
-				if (thread2 && thread2.isThread()) {
-					await thread2.setArchived(true, 'Battle completed');
-					await thread2.setLocked(true);
-				}
-			}
-
-			if (session.battleLogThread) {
-				// Keep the main battle log accessible but locked
-				await session.battleLogThread.setLocked(true);
-				await session.battleLogThread.setArchived(true, 'Battle review period ended');
-			}
-		} catch (error) {
-			console.error('Error cleaning up battle threads:', error);
+		if (session?.battleChannel) {
+			// BattleChannel handles its own cleanup
+			console.log(`Battle channel cleanup initiated for ${sessionId}`);
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { Race, CombatCondition } from '../types/enums';
+import { Race, CombatCondition, type Affinity } from '../types/enums';
 import { Stats, StatBoosts, VolatileEffect, Trait, Equipment, Disposition } from '../types/interfaces';
 import { StatName, BoostableStat } from '../types/types';
 import { clamp, randomInt } from '../util/utils';
@@ -15,6 +15,8 @@ export class Character {
 	currentXP: number;
 	xpToNextLevel: number;
 	races: Race[];
+	resistances: Affinity[];
+	weaknesses: Affinity[];
 	baseStats: Stats;
 	hpIv: number;
 	atkIv: number;
@@ -216,6 +218,8 @@ export class Character {
 		this.currentXP = data.currentXP || 0;
 		this.xpToNextLevel = this.calculateXPToNextLevel();
 		this.races = data.races || [];
+		this.resistances = data.resistances || [];
+		this.weaknesses = data.weaknesses || [];
 		this.baseStats = data.baseStats || { hp: 50, attack: 50, defense: 50, magicAttack: 50, magicDefense: 50, speed: 50 };
 		this.hpIv = data.hpIv ?? randomInt(0, 31);
 		this.atkIv = data.atkIv ?? randomInt(0, 31);
@@ -358,6 +362,42 @@ export class Character {
 			speed: this.calculateStat('speed')
 		};
 
+		// Apply racial bonuses based on race
+		for (const race of this.races) {
+			switch (race) {
+				case Race.Elf:
+					stats.magicAttack += 5;
+					stats.magicDefense += 5;
+					stats.speed += 3;
+					break;
+				case Race.Human:
+					// Humans are balanced, small bonus to all
+					stats.hp += 2;
+					stats.attack += 2;
+					stats.defense += 2;
+					stats.magicAttack += 2;
+					stats.magicDefense += 2;
+					stats.speed += 2;
+					break;
+				case Race.Dwarf:
+					stats.hp += 10;
+					stats.attack += 5;
+					stats.defense += 8;
+					stats.speed -= 3;
+					break;
+				case Race.Demon:
+					stats.magicAttack += 8;
+					stats.attack += 3;
+					stats.magicDefense += 3;
+					break;
+				case Race.Monster:
+					stats.attack += 6;
+					stats.speed += 4;
+					stats.hp += 5;
+					break;
+			}
+		}
+
 		// Apply equipment stat modifiers
 		if (this.equipment && this.equipment.statMultiplier) {
 			stats = this.equipment.statMultiplier(this, stats);
@@ -409,6 +449,56 @@ export class Character {
 
 	hasRace(race: Race): boolean {
 		return this.races.includes(race);
+	}
+
+	/**
+	 * Check if character is resistant to a specific element/type
+	 */
+	isResistantTo(element: Affinity): boolean {
+		return this.resistances.includes(element);
+	}
+
+	/**
+	 * Check if character is weak to a specific element/type
+	 */
+	isWeakTo(element: Affinity): boolean {
+		return this.weaknesses.includes(element);
+	}
+
+	/**
+	 * Get damage multiplier for a specific element/type
+	 * @param element The element/type to check
+	 * @returns 0.5 for resistance, 2.0 for weakness, 1.0 for neutral
+	 */
+	getDamageMultiplier(element: Affinity): number {
+		if (this.isResistantTo(element)) {
+			return 0.5; // 50% damage
+		}
+		if (this.isWeakTo(element)) {
+			return 2.0; // 200% damage
+		}
+		return 1.0; // Normal damage
+	}
+
+	/**
+	 * Get all resistances for display purposes
+	 */
+	getResistances(): string[] {
+		return [...this.resistances];
+	}
+
+	/**
+	 * Get all weaknesses for display purposes
+	 */
+	getWeaknesses(): string[] {
+		return [...this.weaknesses];
+	}
+
+	/**
+	 * Get all races for display purposes
+	 */
+	getRaces(): Race[] {
+		return [...this.races];
 	}
 
 	canAct(): boolean {

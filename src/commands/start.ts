@@ -4,7 +4,6 @@ import { EmbedBuilder } from 'discord.js';
 import { CharacterRegistry } from '@src/lib/characters/CharacterRegistry';
 import { CharacterName } from '@src/lib/metadata/CharacterName';
 import { getUser } from '@src/lib/util/db/user';
-import { randomInt } from '@src/lib/util/utils';
 
 @ApplyOptions<Command.Options>({
 	description: 'Start your journey by selecting a starter character',
@@ -35,16 +34,16 @@ export class StartCommand extends Command {
 		await interaction.deferReply();
 
 		// Check if user already exists
-		const existingUser = await this.container.db.user.findUnique({
-			where: { id: interaction.user.id },
-			include: { characters: true }
-		});
+		// const existingUser = await this.container.db.user.findUnique({
+		// 	where: { id: interaction.user.id },
+		// 	include: { characters: true }
+		// });
 
-		if (existingUser && existingUser.characters.length > 0) {
-			return interaction.editReply({
-				content: '❌ You have already started your journey! You cannot use `/start` again.'
-			});
-		}
+		// if (existingUser && existingUser.characters.length > 0) {
+		// 	return interaction.editReply({
+		// 		content: '❌ You have already started your journey! You cannot use `/start` again.'
+		// 	});
+		// }
 
 		const characterName = interaction.options.getString('character') as CharacterName | null;
 
@@ -89,68 +88,23 @@ export class StartCommand extends Command {
 			// Create or get user
 			const user = await getUser(interaction.user.id);
 
-			// Check if they already have characters (double-check)
-			const userWithCharacters = await this.container.db.user.findUnique({
-				where: { id: user.id },
-				include: { characters: true }
-			});
+			// // Check if they already have characters (double-check)
+			// const userWithCharacters = await this.container.db.user.findUnique({
+			// 	where: { id: user.id },
+			// 	include: { characters: true }
+			// });
 
-			if (userWithCharacters && userWithCharacters.characters.length > 0) {
-				return interaction.editReply({
-					content: '❌ You have already started your journey! You cannot select another starter.'
-				});
-			}
-
-			// Generate IVs for the character
-			const hpIv = randomInt(1, 31);
-			const atkIv = randomInt(1, 31);
-			const defIv = randomInt(1, 31);
-			const mgAtkIv = randomInt(1, 31);
-			const mgDefIv = randomInt(1, 31);
-			const spdIv = randomInt(1, 31);
-
-			const totalIV = hpIv + atkIv + defIv + mgAtkIv + mgDefIv + spdIv;
-			const ivPercent = (totalIV / 186) * 100; // 186 is max possible (31 * 6)
+			// if (userWithCharacters && userWithCharacters.characters.length > 0) {
+			// 	return interaction.editReply({
+			// 		content: '❌ You have already started your journey! You cannot select another starter.'
+			// 	});
+			// }
 
 			// Create the character in the database
-			await this.container.db.userCharacter.create({
-				data: {
-					userId: user.id,
-					characterName: selectedCharacter.characterName,
-					level: 1,
-					currentXP: 0,
-					maxHP: selectedCharacter.baseStats.hp,
-					maxMana: Math.floor(selectedCharacter.baseStats.hp * 0.6),
-					hpIv: hpIv,
-					atkIv: atkIv,
-					defIv: defIv,
-					mgAtkIv: mgAtkIv,
-					mgDefIv: mgDefIv,
-					spdIv: spdIv,
-					totalIV: totalIV,
-					ivPercent: ivPercent,
-					isStarter: true,
-					obtainedFrom: 'starter'
-				}
-			});
-
-			// Update character collection
-			await this.container.db.characterCollection.upsert({
-				where: {
-					userId_characterName: {
-						userId: user.id,
-						characterName: selectedCharacter.characterName
-					}
-				},
-				create: {
-					userId: user.id,
-					characterName: selectedCharacter.characterName,
-					timesObtained: 1,
-					firstObtained: new Date()
-				},
-				update: {
-					timesObtained: { increment: 1 }
-				}
+			const userCharacter = await selectedCharacter.createUserCharacter(user.id, {
+				isStarter: true,
+				obtainedFrom: 'starter',
+				setSelected: true
 			});
 
 			const displayInfo = selectedCharacter.getDisplayInfo();
@@ -163,7 +117,7 @@ export class StartCommand extends Command {
 						name: '🎯 Your Starter Character',
 						value: [
 							`${displayInfo.emoji} **${displayInfo.name}**`,
-							`**Level:** 1`,
+							`**Level:** ${userCharacter.level}`,
 							`**Races:** ${displayInfo.races.join(', ')}`,
 							`**Ability:** ${displayInfo.ability}`
 						].join('\n'),

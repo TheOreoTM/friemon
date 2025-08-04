@@ -14,7 +14,7 @@ export const TECHNIQUES: { [key: string]: Technique } = {
 		precision: 0.95,
 		manaCost: 15,
 		description: 'The ordinary offensive spell, highly efficient against demons.',
-		properties: { magicBased: true }
+		properties: { magicBased: true },
 	}),
 
 	judaBeam: new Technique({

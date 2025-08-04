@@ -9,16 +9,47 @@ export enum Race {
 }
 
 export enum Affinity {
+	// === ELEMENTAL MAGIC ===
+	Elemental_Fire = 'Elemental_Fire',
+	Elemental_Water = 'Elemental_Water',
+	Elemental_Earth = 'Elemental_Earth',
+	Elemental_Wind = 'Elemental_Wind',
+	Elemental_Ice = 'Elemental_Ice',
+	Elemental_Lightning = 'Elemental_Lightning',
+
+	// === COMBAT MAGIC ===
 	Destruction = 'Destruction',
+	Binding = 'Binding',
+	Curse = 'Curse',
+	Physical = 'Physical',
+
+	// === UTILITY MAGIC ===
 	Support = 'Support',
 	Defense = 'Defense',
 	Healing = 'Healing',
+	Detection = 'Detection',
 	Illusion = 'Illusion',
-	Elemental_Fire = 'Elemental_Fire',
-	Elemental_Water = 'Elemental_Water',
-	Elemental_Wind = 'Elemental_Wind',
-	Elemental_Earth = 'Elemental_Earth',
-	Demonic_Aura = 'Demonic_Aura'
+	Transformation = 'Transformation',
+
+	// === ADVANCED MAGIC ===
+	Space = 'Space',
+	Mana = 'Mana',
+	Ancient = 'Ancient',
+
+	// === SPIRITUAL MAGIC ===
+	Holy = 'Holy',
+	Demonic_Aura = 'Demonic_Aura',
+	Nature = 'Nature',
+	Folk = 'Folk',
+
+	// === HYBRID CATEGORIES ===
+	Battle_Magic = 'Battle_Magic',
+	Scholar_Magic = 'Scholar_Magic',
+	Priest_Magic = 'Priest_Magic',
+	Holy_Magic = 'Holy_Magic',
+	Demon_Magic = 'Demon_Magic',
+	Human_Magic = 'Human_Magic',
+	Elven_Magic = 'Elven_Magic'
 }
 
 export enum TechniqueCategory {
