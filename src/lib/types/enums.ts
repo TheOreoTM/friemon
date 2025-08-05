@@ -46,7 +46,6 @@ export enum Affinity {
 	Battle_Magic = 'Battle_Magic',
 	Scholar_Magic = 'Scholar_Magic',
 	Priest_Magic = 'Priest_Magic',
-	Holy_Magic = 'Holy_Magic',
 	Demon_Magic = 'Demon_Magic',
 	Human_Magic = 'Human_Magic',
 	Elven_Magic = 'Elven_Magic'
