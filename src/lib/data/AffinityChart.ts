@@ -64,8 +64,7 @@ export const AFFINITY_CHART: { [key in Affinity]: { [key in Affinity]?: number }
 		[Affinity.Physical]: 2.0,
 		[Affinity.Folk]: 2.0,
 		[Affinity.Ancient]: 0.5,
-		[Affinity.Human_Magic]: 1.2,
-		[Affinity.Holy_Magic]: 0.5
+		[Affinity.Human_Magic]: 1.2
 	},
 
 	[Affinity.Binding]: {
@@ -79,7 +78,6 @@ export const AFFINITY_CHART: { [key in Affinity]: { [key in Affinity]?: number }
 
 	[Affinity.Curse]: {
 		[Affinity.Holy]: 0.25,
-		[Affinity.Holy_Magic]: 0.25,
 		[Affinity.Healing]: 0.5,
 		[Affinity.Support]: 1.5,
 		[Affinity.Nature]: 1.5,
@@ -123,7 +121,6 @@ export const AFFINITY_CHART: { [key in Affinity]: { [key in Affinity]?: number }
 		[Affinity.Destruction]: 0.5,
 		[Affinity.Nature]: 1.5,
 		[Affinity.Holy]: 1.5,
-		[Affinity.Holy_Magic]: 1.2,
 		[Affinity.Priest_Magic]: 1.2
 	},
 
@@ -191,13 +188,11 @@ export const AFFINITY_CHART: { [key in Affinity]: { [key in Affinity]?: number }
 		[Affinity.Ancient]: 0.5,
 		[Affinity.Healing]: 0.5,
 		[Affinity.Priest_Magic]: 1.5,
-		[Affinity.Holy_Magic]: 1.2,
 		[Affinity.Demon_Magic]: 2.0
 	},
 
 	[Affinity.Demonic_Aura]: {
 		[Affinity.Holy]: 0.5,
-		[Affinity.Holy_Magic]: 0.25,
 		[Affinity.Healing]: 0.5,
 		[Affinity.Support]: 1.5,
 		[Affinity.Defense]: 1.5,
@@ -253,27 +248,14 @@ export const AFFINITY_CHART: { [key in Affinity]: { [key in Affinity]?: number }
 		[Affinity.Demonic_Aura]: 1.5,
 		[Affinity.Curse]: 1.5,
 		[Affinity.Holy]: 0.5,
-		[Affinity.Holy_Magic]: 1.2,
 		[Affinity.Healing]: 0.5,
 		[Affinity.Ancient]: 1.5,
 		[Affinity.Demon_Magic]: 2.0,
 		[Affinity.Human_Magic]: 1.2
 	},
 
-	[Affinity.Holy_Magic]: {
-		[Affinity.Demonic_Aura]: 2.0,
-		[Affinity.Demon_Magic]: 2.0,
-		[Affinity.Curse]: 2.0,
-		[Affinity.Destruction]: 1.5,
-		[Affinity.Ancient]: 0.5,
-		[Affinity.Holy]: 0.5,
-		[Affinity.Priest_Magic]: 0.5,
-		[Affinity.Human_Magic]: 1.2
-	},
-
 	[Affinity.Demon_Magic]: {
 		[Affinity.Holy]: 0.25,
-		[Affinity.Holy_Magic]: 0.25,
 		[Affinity.Priest_Magic]: 0.5,
 		[Affinity.Healing]: 0.5,
 		[Affinity.Destruction]: 1.2,
@@ -352,7 +334,6 @@ export const RACE_AFFINITY_BONUS: { [key in Race]: { [key in Affinity]?: number 
 		[Affinity.Battle_Magic]: 1.3,
 		[Affinity.Mana]: 1.2,
 		[Affinity.Holy]: 0.2,
-		[Affinity.Holy_Magic]: 0.2,
 		[Affinity.Healing]: 0.3,
 		[Affinity.Priest_Magic]: 0.1,
 		[Affinity.Human_Magic]: 0.7
